@@ -1,0 +1,77 @@
+name: grafo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-grafo}
+      POSTGRES_USER: ${POSTGRES_USER:-grafo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  nats:
+    image: nats:2-alpine
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8222/healthz?js-enabled-only=true"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  grafo:
+    build: .
+    image: grafo:1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-grafo}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-grafo}
+      REDIS_URL: redis://redis:6379
+      NATS_URL: nats://nats:4222
+      GRAFO_BIND: 0.0.0.0:8080
+      GRAFO_API_TOKEN: ${GRAFO_API_TOKEN:-}
+      GRAFO_MAX_UPDATE_BYTES: ${GRAFO_MAX_UPDATE_BYTES:-8388608}
+      GRAFO_SNAPSHOT_EVERY: ${GRAFO_SNAPSHOT_EVERY:-200}
+      GRAFO_RATE_LIMIT: ${GRAFO_RATE_LIMIT:-120}
+      GRAFO_ROOM_IDLE_SECS: ${GRAFO_ROOM_IDLE_SECS:-60}
+      GRAFO_TRUST_PROXY: ${GRAFO_TRUST_PROXY:-false}
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "${GRAFO_PORT:-8080}:8080"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  nats-data:

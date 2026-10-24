@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Grafo: editor colaborativo de design de interfaces e diagramas.">
+  <title>Grafo</title>
+  <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/grafo.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar">
+      <div class="brand">
+        <button class="logo-btn" id="mainMenuBtn" title="Menu principal" aria-label="Menu principal"><span class="logo" id="logo"></span></button>
+        <div class="menus" id="menus"></div>
+      </div>
+      <nav class="tools" id="tools" aria-label="Ferramentas"></nav>
+      <div class="top-right">
+        <div class="avatars" id="avatars"></div>
+        <span class="conn" id="conn" title="Conexão"></span>
+        <button class="btn" id="presentBtn" title="Apresentar (Ctrl+Alt+Enter)"></button>
+        <button class="btn primary" id="shareBtn">Compartilhar</button>
+        <button class="btn ghost zoom" id="zoomBtn" title="Zoom">100%</button>
+        <button class="btn icon" id="themeBtn" title="Tema claro ou escuro" aria-label="Tema"></button>
+      </div>
+    </header>
+    <aside class="panel left" id="leftPanel"></aside>
+    <main class="canvas-wrap" id="canvasWrap">
+      <canvas class="ruler ruler-x" id="rulerX" aria-hidden="true"></canvas>
+      <canvas class="ruler ruler-y" id="rulerY" aria-hidden="true"></canvas>
+      <div class="ruler-corner" aria-hidden="true"></div>
+      <div class="stage-host" id="stageHost">
+        <canvas class="overlay" id="overlay" tabindex="0" aria-label="Área de desenho"></canvas>
+        <div class="html-layer" id="htmlLayer"></div>
+      </div>
+      <canvas class="minimap" id="minimap" width="200" height="130" aria-label="Minimapa"></canvas>
+      <div class="toast-host" id="toasts" aria-live="polite"></div>
+    </main>
+    <aside class="panel right" id="rightPanel"></aside>
+    <footer class="statusbar" id="statusbar"></footer>
+  </div>
+  <div class="loading" id="loading"><span class="logo big" id="loadingLogo"></span><span>Carregando o Grafo…</span></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

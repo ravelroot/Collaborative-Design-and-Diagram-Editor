@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".github/atividade.txt"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Editor (JavaScript)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Testes do editor e do núcleo
+        run: npm test
+      - name: Build do editor
+        run: npm run build
+      - name: Grafo.html em dia com o código
+        run: node scripts/build-portable.mjs --check
+      - name: Navegador para os testes ponta a ponta
+        run: npx playwright install --with-deps chromium
+      - name: Testes ponta a ponta
+        run: npm run test:e2e
+
+  engine:
+    name: Núcleo C++ (Emscripten)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.10
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Compilar com Emscripten
+        run: bash engine/build.sh
+      - name: Testar o WebAssembly compilado
+        run: node --test --test-force-exit tests/js/engine.test.js
+
+  server:
+    name: Servidor (Rust)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Testes de unidade, integração e carga
+        run: cargo test --locked -- --nocapture
+
+  docker:
+    name: Imagem Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    needs: [web, engine, server]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validar o Compose
+        run: POSTGRES_PASSWORD=ci docker compose config --quiet
+      - name: Construir a imagem
+        run: docker build -t grafo:ci .

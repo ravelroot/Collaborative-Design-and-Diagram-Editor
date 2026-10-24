@@ -1,0 +1,77 @@
+Licença de Uso do Grafo
+
+Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.
+
+O Grafo (o código-fonte, o Grafo.html, o servidor, o núcleo geométrico em
+C++/WebAssembly, os manuais em PDF, o logo e as imagens deste repositório,
+juntos chamados aqui de "Software") é protegido pela Lei de Direitos Autorais
+(Lei nº 9.610/1998) e pela Lei do Software (Lei nº 9.609/1998). Esta licença
+não transfere a propriedade do Software: ela só dá a você o direito de usá-lo,
+nas condições abaixo.
+
+1. O que você pode fazer
+
+   a) Baixar o Software e guardá-lo ou instalá-lo nos seus computadores e
+      servidores.
+   b) Usar o Software de graça, para fins pessoais, educacionais ou
+      profissionais, de qualquer uma das maneiras descritas na documentação:
+      servidor completo (inclusive com o Docker Compose), servidor local só
+      com o editor ou arquivo único (Grafo.html).
+   c) Configurar o Software pelos meios previstos na documentação, como as
+      variáveis de ambiente do arquivo .env e as preferências, estilos e
+      bibliotecas do próprio editor. Isso não conta como modificação.
+   d) Fazer só as cópias necessárias para esse uso: a cópia baixada, a
+      instalação e uma cópia de segurança.
+
+2. O que você não pode fazer sem autorização por escrito do autor
+
+   a) Modificar, adaptar, traduzir ou criar obras derivadas do Software ou de
+      qualquer parte dele.
+   b) Copiar o código-fonte, no todo ou em parte, para outros projetos,
+      programas ou repositórios.
+   c) Redistribuir, publicar, vender, alugar, emprestar, sublicenciar ou
+      disponibilizar o Software a terceiros, modificado ou não, inclusive em
+      outros sites, lojas de aplicativos, imagens de contêiner e pacotes. Para
+      indicar o Grafo, use o link do repositório oficial.
+   d) Remover ou alterar os avisos de copyright, o nome Grafo, o logo ou esta
+      licença.
+   e) Descompilar ou fazer engenharia reversa do núcleo em WebAssembly ou dos
+      binários do servidor, salvo nos casos em que a lei permite.
+
+3. O que você cria é seu
+
+   Interfaces, diagramas, protótipos, componentes, estilos e arquivos que você
+   cria ou exporta com o Grafo (.grafo, PNG, JPG, SVG e PDF) pertencem a você,
+   que pode usá-los como quiser, inclusive em projetos comerciais.
+
+4. GitHub
+
+   O repositório é público para que o Grafo possa ser baixado. Ver o código e
+   usar os recursos do próprio GitHub, como o fork, nos limites dos Termos de
+   Serviço do GitHub, não dá nenhum direito além desta licença.
+
+5. Componentes de terceiros
+
+   Os componentes de terceiros usados pelo Software, listados no README,
+   continuam sob as próprias licenças.
+
+6. Sem garantia
+
+   O Software é fornecido "no estado em que se encontra", sem garantia de
+   nenhum tipo, expressa ou implícita, inclusive de adequação a um uso
+   específico. Na extensão máxima permitida pela lei, o autor não responde por
+   danos, perda de dados ou outros prejuízos causados pelo uso do Software ou
+   pela impossibilidade de usá-lo.
+
+7. Fim da licença
+
+   O descumprimento de qualquer condição encerra esta licença
+   automaticamente. Nesse caso, você deve parar de usar o Software e apagar as
+   cópias que tiver.
+
+8. Pedidos de autorização
+
+   Para pedir uma autorização que esta licença não dá, fale com o autor pelo
+   GitHub: https://github.com/ravelroot
+
+Esta licença é regida pelas leis da República Federativa do Brasil.

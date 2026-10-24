@@ -1,0 +1,10 @@
+.git
+.github
+.env
+**/node_modules
+server/target
+web/dist
+docs
+tests
+*.pdf
+Grafo.html

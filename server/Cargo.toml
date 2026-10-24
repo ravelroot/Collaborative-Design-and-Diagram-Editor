@@ -1,0 +1,36 @@
+[package]
+name = "grafo-server"
+version = "1.0.0"
+edition = "2021"
+publish = false
+license-file = "../LICENSE"
+
+[[bin]]
+name = "grafo-server"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+async-nats = "0.50.0"
+axum = { version = "0.8.9", features = ["ws"] }
+base64 = "0.23.1"
+bytes = "1.12.1"
+chrono = { version = "0.4.45", features = ["serde"] }
+dashmap = "6.2.1"
+futures = "0.3.34"
+hex = "0.4.3"
+redis = { version = "1.8.0", features = ["tokio-comp", "connection-manager"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.11.1"
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
+tokio = { version = "1.54.1", features = ["full"] }
+tower = "0.5.3"
+tower-http = { version = "0.7.1", features = ["fs", "trace", "cors", "compression-gzip", "set-header", "limit", "timeout"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+uuid = { version = "1.29.0", features = ["v4", "serde"] }
+yrs = { version = "0.28.0", features = ["sync"] }
+
+[dev-dependencies]
+tokio-tungstenite = "0.30.0"
