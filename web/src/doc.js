@@ -415,7 +415,7 @@ export class Store {
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 1500);
-      if (location.protocol.startsWith('http')) {
+      if (location.protocol.startsWith('http') && !window.GRAFO_PORTABLE) {
         const r = await fetch('/api/health', { signal: ctrl.signal, headers: { Accept: 'application/json' } });
         if (r.ok && (r.headers.get('content-type') || '').includes('json')) health = await r.json();
       }

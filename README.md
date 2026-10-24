@@ -6,7 +6,7 @@
 
 <p align="center">
   Editor colaborativo de design de interfaces e de diagramas que roda no navegador. Desenhe telas com frames, vetores, caneta, texto e imagens, organize com auto layout, restrições, componentes, estilos e operações booleanas, monte fluxogramas, UML, entidade-relacionamento, BPMN, redes e organogramas com conectores que desviam das formas, ligue os frames num protótipo clicável e edite tudo junto com outras pessoas, vendo os cursores em tempo real. Exporta PNG, JPG, SVG, PDF e o próprio arquivo <code>.grafo</code>.<br>
-  Roda de duas maneiras: servidor completo com colaboração (Docker Compose) ou arquivo único no navegador (<code>Grafo.html</code>).<br>
+  Roda de duas maneiras: servidor completo com colaboração (Docker Compose) ou com dois cliques no <code>Grafo.html</code> (ou no <code>index.html</code>), sem instalar nada.<br>
   Pronto para baixar e usar.
 </p>
 
@@ -20,7 +20,9 @@
 
 > **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL e as regras de integridade, retenção e segurança dos dados.
 
-> **Versão 1.0.0 (Atual):** primeira versão pública: design e diagramas no mesmo arquivo, 107 formas em oito bibliotecas, colaboração em tempo real pelo servidor Rust e o `Grafo.html` que abre sem instalar nada. Detalhes no [`CHANGELOG.md`](CHANGELOG.md).
+> **Versão 1.0.1 (Atual):** o Grafo abre com dois cliques em qualquer HTML do projeto: o [`Grafo.html`](Grafo.html), o novo [`index.html`](index.html) da raiz ou o `web/index.html`, que agora leva direto ao editor em vez de ficar parado em "Carregando". Detalhes em [Arquivo único](#2-arquivo-único-grafohtml).
+
+> **Versão 1.0.0:** primeira versão pública: design e diagramas no mesmo arquivo, 107 formas em oito bibliotecas, colaboração em tempo real pelo servidor Rust e o `Grafo.html` que abre sem instalar nada. Detalhes no [`CHANGELOG.md`](CHANGELOG.md).
 
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com duas telas de celular, um componente de botão e as notas, com páginas e camadas à esquerda e o painel Design à direita">
@@ -196,7 +198,7 @@ Cada objeto é um mapa com `id`, `type`, `page`, `parent`, `z` (ordem) e as prop
 | Maneira | Para quem | Colaboração | Onde salva |
 |---|---|---|---|
 | 1. Servidor completo (Docker Compose) | Equipes, uso em rede | Em tempo real, entre computadores | PostgreSQL (e uma cópia no navegador) |
-| 2. Arquivo único (`Grafo.html`) | Uso individual, sem instalar nada | Entre abas do mesmo navegador | Navegador (IndexedDB) e arquivos `.grafo` |
+| 2. Dois cliques no HTML (`Grafo.html` ou `index.html`) | Uso individual, sem instalar nada | Entre abas do mesmo navegador | Navegador (IndexedDB) e arquivos `.grafo` |
 
 ### 1. Servidor completo
 
@@ -235,6 +237,14 @@ Abre em `http://localhost:5173`, salva no navegador e as abas do mesmo arquivo c
 ### 2. Arquivo único (Grafo.html)
 
 Baixe o [`Grafo.html`](Grafo.html) e abra com dois cliques. O editor inteiro, com o núcleo WebAssembly embutido, abre sem servidor e sem internet, com uma Content-Security-Policy que só deixa rodar o próprio script (conferido por hash SHA-256) e bloqueia qualquer conexão de rede. Os arquivos ficam em **Arquivo → Arquivos recentes** e podem ser salvos e abertos como `.grafo`.
+
+| Arquivo | O que acontece ao dar dois cliques |
+|---|---|
+| `Grafo.html` | Abre o editor inteiro |
+| `index.html` (raiz) | Abre o `Grafo.html` na hora |
+| `web/index.html` | Abre o `Grafo.html` (em vez de esperar pelo build) |
+
+Funciona no Chrome, no Edge, no Firefox e no Safari, inclusive em pastas com espaço no nome, como `C:\Users\Seu Nome\Desktop`. Para levar para outro computador, basta copiar o `Grafo.html`.
 
 ## Usando a API
 
@@ -358,8 +368,10 @@ O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten,
 
 ```text
 Grafo.html                  o editor inteiro num arquivo só, que abre sem servidor (gerado)
+index.html                  abre o Grafo.html com dois cliques
 web/                        editor
   index.html, css/, img/    página, estilos com a paleta e logo
+  boot.js                   leva ao Grafo.html quando o index.html é aberto direto do disco
   src/                      módulos: documento, render, editor, painéis, exportação, apresentação e exemplo
   src/engine/               ponte JavaScript do núcleo WebAssembly, com versões em JavaScript
   assets/engine.wasm        núcleo compilado (gerado)
@@ -401,7 +413,7 @@ O Grafo é distribuído sob uma [licença de uso](LICENSE) própria:
 
 | Pode | Não pode |
 |---|---|
-| Baixar e usar de graça, como servidor completo, só o editor ou `Grafo.html` | Modificar o Grafo ou criar versões derivadas |
+| Baixar e usar de graça, como servidor completo, só o editor ou com dois cliques no `Grafo.html` | Modificar o Grafo ou criar versões derivadas |
 | Configurar pelo `.env` e pelas preferências, estilos e bibliotecas do editor | Copiar o código, no todo ou em parte, para outros projetos |
 | Usar como quiser o que você cria ou exporta, inclusive em projetos comerciais | Redistribuir, publicar ou vender o Grafo |
 

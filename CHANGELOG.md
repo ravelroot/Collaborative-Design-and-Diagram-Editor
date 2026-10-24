@@ -2,6 +2,17 @@
 
 Todas as mudanças importantes do Grafo ficam registradas aqui.
 
+## [1.0.1] - 2026-10-24
+
+### Adicionado
+
+- `index.html` na raiz: dois cliques abrem o Grafo na hora.
+- `web/index.html` aberto direto do disco agora leva ao `Grafo.html`, em vez de ficar em "Carregando".
+
+### Alterado
+
+- O `Grafo.html` não tenta mais falar com o servidor quando é aberto por um endereço http, o que gerava um aviso no console.
+
 ## [1.0.0] - 2026-10-24
 
 Primeira versão pública.

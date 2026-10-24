@@ -1821,7 +1821,7 @@ export class UI {
 
   aboutDialog() {
     this.modal('Sobre o Grafo', el('div', {},
-      el('div', { style: { display: 'flex', gap: '14px', alignItems: 'center' } }, el('span', { class: 'logo big', style: { background: '#000' } }, logoSvg()), el('div', {}, el('b', { text: 'Grafo 1.0.0', style: { fontSize: '16px' } }), el('div', { class: 'hint', text: 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.' }))),
+      el('div', { style: { display: 'flex', gap: '14px', alignItems: 'center' } }, el('span', { class: 'logo big', style: { background: '#000' } }, logoSvg()), el('div', {}, el('b', { text: 'Grafo 1.0.1', style: { fontSize: '16px' } }), el('div', { class: 'hint', text: 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.' }))),
       el('p', { text: 'Editor colaborativo de design de interfaces e diagramas.' }),
       el('p', { class: 'hint', text: `Render: ${this.app.renderer.backend} · Núcleo geométrico: ${this.app.engineMode} · Modo: ${this.store.mode === 'server' ? 'servidor' : 'local'}` }),
       el('p', { class: 'hint', text: 'Uso permitido nos termos da licença do repositório oficial: github.com/ravelroot/Collaborative-Design-and-Diagram-Editor' })), [{ label: 'Fechar', primary: true }]);

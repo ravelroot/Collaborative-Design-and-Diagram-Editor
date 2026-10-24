@@ -42,7 +42,7 @@ services:
 
   grafo:
     build: .
-    image: grafo:1.0.0
+    image: grafo:1.0.1
     depends_on:
       postgres:
         condition: service_healthy

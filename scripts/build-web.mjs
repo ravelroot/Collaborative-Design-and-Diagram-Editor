@@ -27,5 +27,6 @@ await cp(path.join(web, 'css'), path.join(dist, 'css'), { recursive: true });
 await cp(path.join(web, 'img'), path.join(dist, 'img'), { recursive: true });
 await cp(path.join(web, 'assets'), path.join(dist, 'assets'), { recursive: true });
 await writeFile(path.join(dist, 'index.html'), await readFile(path.join(web, 'index.html'), 'utf8'));
+await cp(path.join(web, 'boot.js'), path.join(dist, 'boot.js'));
 const bytes = Object.values(result.metafile.outputs).reduce((s, o) => s + o.bytes, 0);
 console.log(`web/dist pronto (${(bytes / 1024).toFixed(0)} KB de JavaScript)`);

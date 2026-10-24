@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
@@ -176,6 +176,22 @@ test('aguenta 3.000 objetos na página', async () => {
   });
   assert.ok(r.add < 3000, `inclusão: ${r.add} ms`);
   assert.ok(r.frameCpu < 50, `quadro: ${r.frameCpu} ms`);
+});
+
+test('abre com dois cliques pelo index.html e pelo web/index.html', async () => {
+  for (const file of ['index.html', path.join('web', 'index.html'), 'Grafo.html']) {
+    const p = await page.context().newPage();
+    const errors = [];
+    p.on('pageerror', (e) => errors.push(e.message));
+    await p.goto(pathToFileURL(path.join(root, file)).href);
+    await p.waitForFunction(() => window.grafo && window.grafo.editor, null, { timeout: 30000 });
+    const info = await p.evaluate(() => ({ url: location.pathname, engine: window.grafo.engineMode, mode: window.grafo.store.mode }));
+    assert.match(info.url, /Grafo\.html$/);
+    assert.equal(info.engine, 'WASM');
+    assert.equal(info.mode, 'local');
+    assert.deepEqual(errors, []);
+    await p.close();
+  }
 });
 
 test('sem erros de JavaScript', () => {
