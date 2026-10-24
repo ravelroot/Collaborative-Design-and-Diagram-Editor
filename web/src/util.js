@@ -156,7 +156,26 @@ export const icon = (name, size = 18) => {
   return svg;
 };
 
+const FILE_TYPES = { grafo: 'Projeto do Grafo', png: 'Imagem PNG', jpg: 'Imagem JPEG', svg: 'Imagem SVG', pdf: 'Documento PDF', json: 'Dados JSON', csv: 'Planilha CSV' };
+
+const blobBase64 = (blob) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(',') + 1));
+  r.onerror = () => reject(r.error);
+  r.readAsDataURL(blob);
+});
+
 export const download = (blob, name) => {
+  const desktop = typeof window !== 'undefined' && window.grafoDesktop;
+  if (desktop && typeof desktop.saveDialog === 'function') {
+    const extension = (/\.([a-z0-9]{1,15})$/i.exec(name) || [])[1] || '';
+    return desktop.saveDialog({ name, title: 'Salvar como', description: FILE_TYPES[extension.toLowerCase()] || `Arquivo .${extension}`, extension: extension.toLowerCase() })
+      .then(async (path) => {
+        if (!path) return null;
+        await desktop.writeFile(path, await blobBase64(blob));
+        return path;
+      });
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;

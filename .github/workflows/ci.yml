@@ -77,11 +77,35 @@ jobs:
       - name: Testes de unidade, integração e carga
         run: cargo test --locked -- --nocapture
 
+  desktop:
+    name: App desktop (Go)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: desktop/go.sum
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Grafo.exe em dia com o código
+        run: node scripts/build-desktop.mjs --check
+      - name: go vet e gofmt
+        working-directory: desktop
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          go vet ./...
+          test -z "$(gofmt -l .)"
+
   docker:
     name: Imagem Docker
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    needs: [web, engine, server]
+    needs: [web, engine, server, desktop]
     steps:
       - uses: actions/checkout@v5
       - name: Validar o Compose

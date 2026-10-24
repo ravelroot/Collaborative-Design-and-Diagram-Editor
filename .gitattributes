@@ -8,3 +8,6 @@
 Grafo.html text eol=lf linguist-generated
 web/assets/engine.wasm linguist-generated
 docs/** linguist-documentation
+*.exe binary
+*.ico binary
+Grafo.exe linguist-generated

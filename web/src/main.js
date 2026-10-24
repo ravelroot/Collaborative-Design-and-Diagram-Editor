@@ -5,6 +5,7 @@ import { UI } from './panels.js';
 import { Engine } from './engine/index.js';
 import { uuid, storage } from './util.js';
 import { seedDocument } from './seed.js';
+import { startTutorial, tutorialPending } from './tutorial.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -63,6 +64,17 @@ class App {
     });
     $('loading').classList.add('done');
     setTimeout(() => $('loading').remove(), 400);
+    addEventListener('pagehide', () => this.store && this.store.saveLocal.flush());
+    if (window.grafoDesktop) {
+      window.__grafoBeforeClose = () => this.store && this.store.persist();
+      addEventListener('keydown', (e) => {
+        if (e.key === 'F11') {
+          e.preventDefault();
+          window.grafoDesktop.toggleFullscreen();
+        }
+      }, true);
+    }
+    if (tutorialPending()) setTimeout(() => startTutorial({ welcome: true }), 450);
   }
 
   async open(id, seed = false, data = null) {

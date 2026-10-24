@@ -8,3 +8,7 @@ target/
 Thumbs.db
 test-results/
 playwright-report/
+desktop/page_windows.go
+desktop/grafo.ico
+desktop/versioninfo.json
+desktop/*.syso

@@ -2,6 +2,22 @@
 
 Todas as mudanças importantes do Grafo ficam registradas aqui.
 
+## [1.1.0] - 2026-10-24
+
+### Adicionado
+
+- App desktop para Windows: `Grafo.exe` abre o editor maximizado numa janela própria, sem servidor, sem navegador e sem instalador. F11 alterna a tela cheia, os arquivos ficam em `%LOCALAPPDATA%\Grafo` e a primeira abertura cria um atalho no menu Iniciar.
+- No app desktop, Ctrl+S, **Salvar cópia `.grafo`** e **Exportar** abrem a janela **Salvar como** do Windows; o arquivo é gravado primeiro num temporário da mesma pasta.
+- Tutorial rápido na primeira abertura, com nove passos sobre as ferramentas, os painéis, a navegação, a colaboração e o salvar. Dá para pular, e ele fica em **Ajuda → Tutorial rápido**.
+- `desktop/` (código do app em Go com WebView2) e `scripts/build-desktop.mjs`, com build reproduzível e `--check`; `npm run desktop`.
+- Testes ponta a ponta do tutorial e da ponte do app desktop; o CI gera o `Grafo.exe` de novo e compara byte a byte.
+
+### Alterado
+
+- O logo no canto superior esquerdo agora tem fundo branco e aparece com menos zoom; o favicon segue o mesmo desenho.
+- A barra de status e a janela Sobre mostram **App desktop** quando o Grafo roda pelo `Grafo.exe`.
+- Manuais em PDF atualizados para a versão 1.1.0.
+
 ## [1.0.1] - 2026-10-24
 
 ### Adicionado

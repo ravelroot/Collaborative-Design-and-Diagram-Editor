@@ -5,6 +5,7 @@ import { isContainer, hasText, nodeBounds, union, FONT_STACKS, fitText } from '.
 import { exportNodes, saveGrafoFile, importSvgAsImage, toSVG } from './export.js';
 import { present, presentableFrames } from './present.js';
 import { Store } from './doc.js';
+import { startTutorial } from './tutorial.js';
 
 const BLEND_NAMES = { normal: 'Normal', multiply: 'Multiplicar', screen: 'Tela', overlay: 'Sobrepor', darken: 'Escurecer', lighten: 'Clarear', 'color-dodge': 'Subexposição de cor', 'color-burn': 'Superexposição de cor', 'hard-light': 'Luz forte', 'soft-light': 'Luz suave', difference: 'Diferença', exclusion: 'Exclusão', hue: 'Matiz', saturation: 'Saturação', color: 'Cor', luminosity: 'Luminosidade' };
 const TYPE_ICON = { frame: 'frame', section: 'section', group: 'group', rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', image: 'image', sticky: 'sticky', shape: 'shapes', connector: 'connector', component: 'component', instance: 'instance', boolean: 'union' };
@@ -247,6 +248,7 @@ export class UI {
         { label: 'Layout automático (esquerda → direita)', run: () => ed.autoArrange(1) },
       ] },
       { name: 'Ajuda', items: () => [
+        { label: 'Tutorial rápido', run: () => startTutorial() },
         { label: 'Atalhos de teclado', key: 'Ctrl+/', run: () => this.shortcutsDialog() },
         { label: 'Seu nome e cor…', run: () => this.shareDialog() },
         { label: 'Sobre o Grafo', run: () => this.aboutDialog() },
@@ -1404,7 +1406,7 @@ export class UI {
     const html = [
       el('span', {}, el('b', { text: this.app.renderer.backend || '—' }), ' render'),
       el('span', {}, el('b', { text: this.app.engineMode }), ' núcleo'),
-      el('span', {}, el('b', { text: this.store.mode === 'server' ? 'Servidor' : 'Local' }), ' modo'),
+      el('span', {}, el('b', { text: this.store.mode === 'server' ? 'Servidor' : window.grafoDesktop ? 'App desktop' : 'Local' }), ' modo'),
       el('span', { text: `${nodes} objetos na página` }),
       el('span', { class: 'grow', text: info }),
       el('span', { text: `X ${Math.round(ed.mouse.x)}  Y ${Math.round(ed.mouse.y)}` }),
@@ -1484,7 +1486,7 @@ export class UI {
 
   onKey(e) {
     if (this.isTyping(e)) return;
-    if (document.querySelector('.modal-back') || document.querySelector('.present')) return;
+    if (document.querySelector('.modal-back') || document.querySelector('.present') || document.querySelector('.tour')) return;
     const ed = this.ed;
     const ctrl = e.ctrlKey || e.metaKey;
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -1821,9 +1823,9 @@ export class UI {
 
   aboutDialog() {
     this.modal('Sobre o Grafo', el('div', {},
-      el('div', { style: { display: 'flex', gap: '14px', alignItems: 'center' } }, el('span', { class: 'logo big', style: { background: '#000' } }, logoSvg()), el('div', {}, el('b', { text: 'Grafo 1.0.1', style: { fontSize: '16px' } }), el('div', { class: 'hint', text: 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.' }))),
+      el('div', { style: { display: 'flex', gap: '14px', alignItems: 'center' } }, el('span', { class: 'logo big' }, logoSvg()), el('div', {}, el('b', { text: `Grafo ${window.grafoDesktop ? window.grafoDesktop.version : '1.1.0'}`, style: { fontSize: '16px' } }), el('div', { class: 'hint', text: 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.' }))),
       el('p', { text: 'Editor colaborativo de design de interfaces e diagramas.' }),
-      el('p', { class: 'hint', text: `Render: ${this.app.renderer.backend} · Núcleo geométrico: ${this.app.engineMode} · Modo: ${this.store.mode === 'server' ? 'servidor' : 'local'}` }),
+      el('p', { class: 'hint', text: `Render: ${this.app.renderer.backend} · Núcleo geométrico: ${this.app.engineMode} · Modo: ${this.store.mode === 'server' ? 'servidor' : window.grafoDesktop ? 'app desktop' : 'local'}` }),
       el('p', { class: 'hint', text: 'Uso permitido nos termos da licença do repositório oficial: github.com/ravelroot/Collaborative-Design-and-Diagram-Editor' })), [{ label: 'Fechar', primary: true }]);
   }
 }
@@ -1832,7 +1834,7 @@ const CURSOR_D = 'M0 0h1v1h-1zM0 1h2v1h-2zM0 2h3v1h-3zM0 3h4v1h-4zM0 4h5v1h-5zM0
 
 export const logoSvg = () => {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  s.setAttribute('viewBox', '2.5 2.5 20 20');
+  s.setAttribute('viewBox', '0 0 25 25');
   s.setAttribute('shape-rendering', 'crispEdges');
   s.setAttribute('aria-hidden', 'true');
   const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');

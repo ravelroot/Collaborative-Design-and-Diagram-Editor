@@ -6,21 +6,23 @@
 
 <p align="center">
   Editor colaborativo de design de interfaces e de diagramas que roda no navegador. Desenhe telas com frames, vetores, caneta, texto e imagens, organize com auto layout, restrições, componentes, estilos e operações booleanas, monte fluxogramas, UML, entidade-relacionamento, BPMN, redes e organogramas com conectores que desviam das formas, ligue os frames num protótipo clicável e edite tudo junto com outras pessoas, vendo os cursores em tempo real. Exporta PNG, JPG, SVG, PDF e o próprio arquivo <code>.grafo</code>.<br>
-  Roda de duas maneiras: servidor completo com colaboração (Docker Compose) ou com dois cliques no <code>Grafo.html</code> (ou no <code>index.html</code>), sem instalar nada.<br>
+  Roda de três maneiras: app desktop para Windows (<code>Grafo.exe</code>), servidor completo com colaboração (Docker Compose) ou com dois cliques no <code>Grafo.html</code> (ou no <code>index.html</code>), sem instalar nada.<br>
   Pronto para baixar e usar.
 </p>
 
 <p align="center">
-  JavaScript (módulos ES) · HTML5 · CSS3 · PixiJS 8 (WebGL2 e WebGPU) · C++17 → WebAssembly (Emscripten) · Rust (Tokio + Axum) · Yjs / Yrs + WebSockets · PostgreSQL 17 · Redis 7 · NATS JetStream · Docker Compose · Node Test Runner · Playwright
+  JavaScript (módulos ES) · HTML5 · CSS3 · PixiJS 8 (WebGL2 e WebGPU) · C++17 → WebAssembly (Emscripten) · Rust (Tokio + Axum) · Yjs / Yrs + WebSockets · PostgreSQL 17 · Redis 7 · NATS JetStream · Go 1.24 + WebView2 (app desktop) · Docker Compose · Node Test Runner · Playwright
 </p>
 
 ---
 
-> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as maneiras de rodar, a tela, cada ferramenta e atalho, frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
+> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as três maneiras de rodar (app desktop, servidor completo e dois cliques no HTML), o tutorial rápido, a tela, cada ferramenta e atalho, frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
 
 > **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL e as regras de integridade, retenção e segurança dos dados.
 
-> **Versão 1.0.1 (Atual):** o Grafo abre com dois cliques em qualquer HTML do projeto: o [`Grafo.html`](Grafo.html), o novo [`index.html`](index.html) da raiz ou o `web/index.html`, que agora leva direto ao editor em vez de ficar parado em "Carregando". Detalhes em [Arquivo único](#2-arquivo-único-grafohtml).
+> **Versão 1.1.0 (Atual):** chegou o **app desktop para Windows**: o [`Grafo.exe`](Grafo.exe) abre o editor maximizado numa janela própria, sem servidor, sem navegador e sem instalar nada, com atalho no menu Iniciar e a janela **Salvar como** do Windows para salvar e exportar. Na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e onde fica cada painel (dá para pular). O logo no canto da tela ficou com fundo branco. Nada muda no formato `.grafo`, na API nem no banco. Detalhes em [App desktop e tutorial rápido (1.1.0)](#app-desktop-e-tutorial-rápido-110).
+
+> **Versão 1.0.1:** o Grafo abre com dois cliques em qualquer HTML do projeto: o [`Grafo.html`](Grafo.html), o novo [`index.html`](index.html) da raiz ou o `web/index.html`, que agora leva direto ao editor em vez de ficar parado em "Carregando". Detalhes em [Arquivo único](#3-arquivo-único-grafohtml).
 
 > **Versão 1.0.0:** primeira versão pública: design e diagramas no mesmo arquivo, 107 formas em oito bibliotecas, colaboração em tempo real pelo servidor Rust e o `Grafo.html` que abre sem instalar nada. Detalhes no [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -43,6 +45,8 @@
 - **Colaboração em tempo real:** o documento é um CRDT (Yjs no editor, Yrs no servidor). Cada pessoa aparece no topo e com o próprio cursor no canvas, a seleção dos outros fica destacada na cor deles, e desfazer só desfaz o que é seu. Sem o servidor, as abas abertas do mesmo arquivo colaboram entre si.
 - **Comentários e versões:** pinos de comentário com conversa, respostas, resolver e reabrir; versões nomeadas que voltam com um clique (e o Ctrl+Z desfaz a volta).
 - **Arquivos:** várias páginas por arquivo, arquivos recentes, salvar e abrir `.grafo`, importar imagens e SVG (arrastando, colando ou pelo menu), colar texto vira texto, exportar PNG, JPG, SVG e PDF (um frame por página) e copiar como SVG.
+- **App desktop:** o [`Grafo.exe`](Grafo.exe) abre maximizado numa janela própria do Windows, sem servidor e sem navegador; F11 alterna a tela cheia, os arquivos ficam neste computador e salvar ou exportar abre a janela **Salvar como** do Windows.
+- **Tutorial rápido:** na primeira vez que o Grafo abre, ele pergunta se você quer um tour de nove passos pelas ferramentas, painéis, navegação, colaboração e salvar. Dá para pular, e ele fica em **Ajuda → Tutorial rápido**.
 - **Leve e fluido:** a tela só é redesenhada quando algo muda, zoom de 2% a 25.600% no ponto do cursor (roda, pinça ou teclado, com animação suave), réguas, minimapa, grade de pixels, temas claro e escuro e interface que some com Ctrl+\\.
 - **Seguro por padrão:** Content-Security-Policy restrita sem `eval`, nenhum dado do usuário entra como HTML, SVG importado é limpo, o servidor limita tamanho e taxa, confere UUIDs e tipos de imagem pelos bytes e degrada sem cair quando falta um serviço. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
 
@@ -55,6 +59,42 @@
   <img src="docs/images/tela-auto-layout.png" width="49%" alt="Cartão com auto layout vertical selecionado e a seção Auto layout no painel Design">
   <img src="docs/images/tela-componentes.png" width="49%" alt="Instância do botão com o texto substituído por Continuar e a seção Instância no painel">
 </p>
+
+## App desktop e tutorial rápido (1.1.0)
+
+<p align="center">
+  <img src="docs/images/tela-tutorial-boas-vindas.png" width="49%" alt="Pergunta da primeira abertura: ver o tutorial rápido ou agora não">
+  <img src="docs/images/tela-tutorial.png" width="49%" alt="Passo Diagramas do tutorial: nota adesiva, conector e a aba Formas acesos, com o que cada um faz">
+</p>
+
+### App desktop (Grafo.exe)
+
+O [`Grafo.exe`](Grafo.exe) é o Grafo como programa do Windows: dois cliques e o editor abre **maximizado**, numa janela própria com o ícone do projeto, sem servidor, sem navegador e sem instalador. É o mesmo editor do `Grafo.html`, embutido num programa pequeno em Go com o WebView2 do Windows ([`desktop/`](desktop/)).
+
+| Ao salvar | Como rodar | Janela que abre | Onde o arquivo vai |
+|---|---|---|---|
+| Ctrl+S, **Salvar cópia `.grafo`** e **Exportar** | App desktop (`Grafo.exe`) | A janela **Salvar como** do Windows (`desktop/save_windows.go`) | A pasta e o nome que você escolher |
+| Ctrl+S, **Salvar cópia `.grafo`** e **Exportar** | Servidor completo ou `Grafo.html` | O download do navegador | A pasta de downloads |
+
+O documento aberto continua sendo salvo sozinho a cada mudança, como antes. No app desktop, o editor manda o conteúdo para o programa em Go, que grava primeiro num arquivo temporário da mesma pasta e só depois troca pelo definitivo, para não estragar o anterior se algo falhar. Ele só aceita gravar arquivos escolhidos na janela durante a sessão.
+
+### Tutorial rápido
+
+Na primeira vez que o Grafo abre, uma janela pergunta se você quer um tutorial rápido: **Ver tutorial** ou **Agora não**. Ele aparece uma vez só (em cada maneira de rodar) e fica sempre em **Ajuda → Tutorial rápido**. São nove passos curtos que escurecem a tela e acendem a parte explicada:
+
+| Passo | O que mostra |
+|---|---|
+| 1. Selecionar e organizar | Mover, escala, frame e seção |
+| 2. Formas e imagens | Retângulo, elipse, linha, seta, polígono, estrela e imagem |
+| 3. Desenhar e escrever | Caneta, lápis e texto |
+| 4. Diagramas | Nota adesiva, conector e a aba **Formas** com as bibliotecas |
+| 5. Páginas e camadas | O painel da esquerda: páginas, árvore de camadas, ocultar e travar |
+| 6. Propriedades | O painel da direita: Design, Protótipo, Dados e Comentários |
+| 7. Navegar e comentar | Mão, comentário, zoom, minimapa e desfazer |
+| 8. Colaborar e apresentar | Quem está no arquivo, conexão, **Apresentar** e **Compartilhar** |
+| 9. Salvar e exportar | Menu **Arquivo**, salvar cópia, versões e exportação (no app desktop, também a janela Salvar como e o F11) |
+
+Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que faz e como usar; passar o mouse sobre ela destaca o botão na barra. **Próximo** e **Voltar** (ou as setas → e ←) andam entre os passos, e **Pular tutorial** ou **Esc** fecham.
 
 ## Design
 
@@ -124,7 +164,7 @@
 | Exibir | Réguas, grade de pixels, minimapa, contornos, encaixe inteligente, encaixe em pixels, links de protótipo, render WebGPU, zoom, tema e ocultar interface |
 | Objeto | Agrupar, desagrupar, frame da seleção, auto layout, criar componente, desanexar instância, booleanas, espelhar, bloquear, ocultar |
 | Organizar | Ordem das camadas, alinhar, distribuir e layout automático do diagrama nas duas direções |
-| Ajuda | Atalhos, seu nome e cor, sobre o Grafo |
+| Ajuda | **Tutorial rápido**, atalhos, seu nome e cor, sobre o Grafo |
 
 O clique direito no canvas abre os comandos mais usados, inclusive **Colar aqui** e **Copiar como SVG**.
 
@@ -170,7 +210,10 @@ O clique direito no canvas abre os comandos mais usados, inclusive **Colar aqui*
 ## Arquitetura
 
 ```text
-Navegador
+Grafo.exe (Go + WebView2) ──► abre o Grafo.html embutido numa janela do Windows
+                          ──► janela Salvar como nativa, tela cheia (F11), atalho no menu Iniciar
+
+Navegador ou WebView2
   Interface (HTML/CSS/JS) ──► Estado (Y.Doc + UndoManager) ──► Renderizador (PixiJS 8: WebGL2 ou WebGPU)
            │                          │                                   │
            │                          │                  Núcleo C++ → WebAssembly (rotas, booleanas, layout, curvas)
@@ -187,6 +230,7 @@ Servidor Rust (Tokio + Axum)
 
 - **Editor (`web/src`):** `doc.js` guarda o documento num Y.Doc (mapas de páginas, nós, comentários, estilos, dados e imagens) e mantém um espelho em memória com índice de filhos e versão por nó, refeito só quando a estrutura muda; `render.js` transforma cada nó num objeto do PixiJS e só redesenha os que mudaram; `editor.js` cuida das ferramentas, do encaixe, do auto layout e dos comandos; `panels.js`, da interface; `export.js` gera SVG, PNG, JPG e PDF sem bibliotecas externas.
 - **Núcleo (`engine/`):** C++17 sem biblioteca padrão, com alocador próprio, compilado para um `engine.wasm` de 37 KB sem imports. A ponte `web/src/engine/index.js` tem versões em JavaScript de todas as funções, usadas se o WebAssembly não carregar.
+- **App desktop (`desktop/`):** programa em Go que abre o `Grafo.html` embutido no WebView2 do Windows, maximizado, guarda os dados em `%LOCALAPPDATA%\Grafo` e oferece ao editor a janela Salvar como nativa (`window.grafoDesktop`).
 - **Servidor (`server/`):** Axum com WebSocket, salas em memória com Yrs, compactação do estado a cada 200 updates, descarte de salas vazias, cabeçalhos de segurança e arquivos estáticos do editor. Cada serviço externo é opcional: sem eles, o servidor roda em memória e avisa no log.
 
 ### Como o documento é guardado
@@ -197,10 +241,34 @@ Cada objeto é um mapa com `id`, `type`, `page`, `parent`, `z` (ordem) e as prop
 
 | Maneira | Para quem | Colaboração | Onde salva |
 |---|---|---|---|
-| 1. Servidor completo (Docker Compose) | Equipes, uso em rede | Em tempo real, entre computadores | PostgreSQL (e uma cópia no navegador) |
-| 2. Dois cliques no HTML (`Grafo.html` ou `index.html`) | Uso individual, sem instalar nada | Entre abas do mesmo navegador | Navegador (IndexedDB) e arquivos `.grafo` |
+| 1. App desktop (`Grafo.exe`) | Uso individual no Windows 10 ou 11, sem instalar nada | Só você | Neste computador, em `%LOCALAPPDATA%\Grafo`, e o `.grafo` na pasta que você escolher |
+| 2. Servidor completo (Docker Compose) | Equipes, uso em rede | Em tempo real, entre computadores | PostgreSQL (e uma cópia no navegador) |
+| 3. Dois cliques no HTML (`Grafo.html` ou `index.html`) | Uso individual, em qualquer sistema, sem instalar nada | Entre abas do mesmo navegador | Navegador (IndexedDB) e arquivos `.grafo` |
 
-### 1. Servidor completo
+Para só desenhar no Windows, o app desktop é o caminho mais direto. Para editar junto com outras pessoas, suba o servidor. Para abrir em qualquer sistema sem instalar nada, use o `Grafo.html`.
+
+### 1. App desktop (Grafo.exe)
+
+Baixe o [`Grafo.exe`](Grafo.exe) e dê dois cliques. O Grafo abre **maximizado** (janela cheia, com a barra de título e a barra de tarefas à vista), numa janela própria, sem servidor e sem navegador. Não há instalador: o arquivo pode ficar em qualquer pasta.
+
+- **F11** alterna a tela cheia.
+- Na primeira vez que abre, o Grafo cria um atalho no **menu Iniciar** (só para o seu usuário, sem pedir administrador). Depois disso, basta pesquisar **Grafo** no Windows.
+- Na primeira abertura, o Grafo também oferece um **tutorial rápido** (dá para pular; ele fica em **Ajuda → Tutorial rápido**).
+- Os arquivos ficam em `%LOCALAPPDATA%\Grafo` e continuam lá na próxima vez, mesmo trocando o `.exe` por uma versão nova. A barra de status mostra **App desktop**.
+- Ctrl+S, **Salvar cópia `.grafo`** e **Exportar** abrem a janela **Salvar como** do Windows.
+- Usa o Microsoft Edge WebView2, que já vem no Windows 10 e 11. Se faltar, o Grafo avisa e oferece abrir a página de download da Microsoft.
+- Por dentro, é um programa pequeno em Go ([`desktop/`](desktop/), cerca de 4 MB com o editor) com o `Grafo.html` embutido: o editor, os testes e a segurança são os mesmos do arquivo único.
+
+Para gerar o `Grafo.exe` a partir do código (precisa do Node.js 22 e do Go; a versão exata fica em `desktop/go.mod`):
+
+```bash
+npm run desktop                                # atualiza o Grafo.html e gera o Grafo.exe na raiz
+node scripts/build-desktop.mjs --check         # confere se o Grafo.exe do repositório corresponde ao código
+```
+
+O build é reproduzível: o mesmo código gera sempre o mesmo `Grafo.exe`, byte a byte, de qualquer sistema. O ícone é o logo do projeto ([`docs/images/logo.svg`](docs/images/logo.svg)) sobre fundo branco, desenhado com pixels inteiros em cada tamanho do Windows, e as propriedades do arquivo trazem a versão e o copyright.
+
+### 2. Servidor completo
 
 #### Com Docker
 
@@ -234,7 +302,7 @@ npm run serve
 
 Abre em `http://localhost:5173`, salva no navegador e as abas do mesmo arquivo colaboram entre si.
 
-### 2. Arquivo único (Grafo.html)
+### 3. Arquivo único (Grafo.html)
 
 Baixe o [`Grafo.html`](Grafo.html) e abra com dois cliques. O editor inteiro, com o núcleo WebAssembly embutido, abre sem servidor e sem internet, com uma Content-Security-Policy que só deixa rodar o próprio script (conferido por hash SHA-256) e bloqueia qualquer conexão de rede. Os arquivos ficam em **Arquivo → Arquivos recentes** e podem ser salvos e abertos como `.grafo`.
 
@@ -345,6 +413,7 @@ Diagramas, campos, restrições, índices e consultas prontas estão no [`Banco-
 | `npm test` | Testes do núcleo WASM e do editor (Node Test Runner) |
 | `npm run build` | Empacota o editor em `web/dist` |
 | `npm run portable` | Gera o `Grafo.html` |
+| `npm run desktop` | Gera o `Grafo.html` e o `Grafo.exe` (precisa do Go) |
 | `npm run test:e2e` | Testes ponta a ponta no Chromium (Playwright) |
 | `cargo test` e `cargo clippy --all-targets -- -D warnings` (em `server/`) | Testes e análise do servidor |
 
@@ -352,32 +421,36 @@ Diagramas, campos, restrições, índices e consultas prontas estão no [`Banco-
 |---|---|---|
 | Núcleo C++/WASM (33 testes) | Entradas degeneradas e NaN, fuzz de 300 pares de polígonos nas quatro booleanas, rota com 500 obstáculos, índice com 10.000 caixas conferido contra força bruta, layout com 300 nós e 400 arestas, memória estável em 5.000 rodadas, WASM e JavaScript com o mesmo resultado | Rota com 500 obstáculos em 0,9 a 35 ms; 1.000 consultas no índice em 6 ms |
 | Editor (15 testes) | Calculadora dos campos, CSV, as 107 formas em vários tamanhos, geometria, conectores ortogonais, desfazer só o que é seu, `.grafo` de ida e volta, três réplicas com 600 edições concorrentes entregues fora de ordem | As réplicas convergem; com 20.000 objetos, 200 consultas de filhos levam cerca de 10 ms |
-| Ponta a ponta (9 cenários) | GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, exportação SVG e PDF, duas abas colaborando, 3.000 objetos e nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
+| Ponta a ponta (11 cenários) | GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, exportação SVG e PDF, duas abas colaborando, 3.000 objetos, o `Grafo.html` direto do disco, o tutorial rápido (aparece uma vez, avança, pula e reabre pelo menu Ajuda) e a ponte do app desktop (janela Salvar como e F11), sem nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
+| App desktop | Build reproduzível do `Grafo.exe` (gerado de novo e comparado byte a byte), `go vet` e `gofmt` no código Go | Idêntico; 0 problemas |
 | Servidor (24 testes) | Protocolo, UUID, limites, limite de taxa, convergência, reconexão depois de 25 updates perdidos, mensagens malformadas, 50 clientes numa sala e 20 salas em paralelo | 50 clientes convergem em 80 ms; 1.000 updates em 20 salas em 288 ms |
 
-O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten, confere se o `Grafo.html` está em dia com o código e constrói a imagem Docker.
+O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten, confere se o `Grafo.html` está em dia com o código, gera o `Grafo.exe` de novo e compara byte a byte com o do repositório e constrói a imagem Docker.
 
 ## Qualidade e segurança
 
 - **Navegador:** CSP sem `unsafe-eval` (o PixiJS roda no modo sem `eval` e os campos numéricos usam uma calculadora própria), `connect-src` limitado ao próprio servidor e `frame-ancestors 'none'`. Nomes de arquivos, páginas, camadas, comentários e textos entram sempre como texto, nunca como HTML. SVG importado perde scripts, eventos e referências externas e entra como imagem. Arquivos `.grafo` inválidos são recusados sem tocar no documento aberto.
 - **Servidor:** UUID validado em todas as rotas, limite de tamanho por update e por imagem, tipo de imagem conferido pelos bytes, limite de requisições por IP (429 com `Retry-After`), token de API comparado em tempo constante, links de leitura que não gravam, mensagens que o Yrs não decodifica derrubam só a conexão que as mandou, e CSP com sandbox nas imagens servidas. A imagem Docker roda sem root, sem capacidades e com sistema de arquivos somente leitura.
+- **App desktop:** carrega o mesmo `Grafo.html`, com a mesma Content-Security-Policy, roda sem permissão de administrador, não abre portas, desliga as ferramentas de desenvolvedor e o menu de contexto do navegador e só grava arquivos que você escolheu na janela Salvar como.
 - **Dados:** o CRDT garante que todos convergem para o mesmo documento, em qualquer ordem de chegada; o desfazer de cada pessoa só mexe nas próprias alterações; o editor guarda uma cópia local no IndexedDB a cada mudança, e o servidor compacta o estado e mantém os updates com número de sequência para recuperar depois de uma queda.
 - **Desempenho:** a renderização só acontece quando algo muda; os objetos fora da tela não são desenhados; a árvore de filhos, a ordem de desenho e a versão de cada nó ficam em índices que só se refazem quando a estrutura muda, e o PixiJS só redesenha os nós alterados.
 
 ### Estrutura
 
 ```text
+Grafo.exe                   app desktop para Windows, que abre maximizado (gerado)
 Grafo.html                  o editor inteiro num arquivo só, que abre sem servidor (gerado)
 index.html                  abre o Grafo.html com dois cliques
+desktop/                    código do app desktop em Go (janela WebView2, tela cheia, menu Iniciar, Salvar como, manifesto)
 web/                        editor
   index.html, css/, img/    página, estilos com a paleta e logo
   boot.js                   leva ao Grafo.html quando o index.html é aberto direto do disco
-  src/                      módulos: documento, render, editor, painéis, exportação, apresentação e exemplo
+  src/                      módulos: documento, render, editor, painéis, exportação, apresentação, tutorial e exemplo
   src/engine/               ponte JavaScript do núcleo WebAssembly, com versões em JavaScript
   assets/engine.wasm        núcleo compilado (gerado)
 engine/                     núcleo geométrico em C++17 (include/, src/, build.sh, CMakeLists.txt)
 server/                     servidor em Rust (src/, migrations/, tests/)
-scripts/                    build do editor (esbuild), do Grafo.html e servidor estático
+scripts/                    build do editor (esbuild), do Grafo.html e do Grafo.exe e servidor estático
 tests/js/                   testes do núcleo e do editor
 tests/e2e/                  testes ponta a ponta (Playwright)
 docs/                       manuais em PDF e imagens do README
@@ -402,8 +475,12 @@ O Grafo depende de componentes com licenças próprias, que continuam valendo pa
 | [esbuild](https://esbuild.github.io/) | Empacotamento do editor (só no build) | MIT |
 | [Emscripten](https://emscripten.org/) | Compilação do núcleo para WebAssembly (só no build) | MIT ou UIUC |
 | [Playwright](https://playwright.dev/) | Testes ponta a ponta (só no desenvolvimento) | Apache-2.0 |
+| [go-webview2](https://github.com/jchv/go-webview2) | Janela do app desktop com o WebView2 (embutido no `Grafo.exe`) | MIT |
+| [go-winloader](https://github.com/jchv/go-winloader) | Carregamento do WebView2 pelo go-webview2 (embutido no `Grafo.exe`) | ISC |
+| [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | Chamadas ao Windows no app desktop (embutido no `Grafo.exe`) | BSD-3-Clause |
+| [goversioninfo](https://github.com/josephspurrier/goversioninfo) | Ícone, versão e manifesto do `Grafo.exe` (só no build) | MIT |
 
-PostgreSQL, Redis e NATS rodam como serviços externos via Docker e não são redistribuídos neste repositório; cada um segue a licença da própria imagem. A interface usa as fontes do sistema e ícones desenhados no próprio código.
+O Microsoft Edge WebView2 Runtime faz parte do Windows e não é redistribuído no `Grafo.exe`. PostgreSQL, Redis e NATS rodam como serviços externos via Docker e não são redistribuídos neste repositório; cada um segue a licença da própria imagem. A interface usa as fontes do sistema e ícones desenhados no próprio código.
 
 ## Licença
 
@@ -413,7 +490,7 @@ O Grafo é distribuído sob uma [licença de uso](LICENSE) própria:
 
 | Pode | Não pode |
 |---|---|
-| Baixar e usar de graça, como servidor completo, só o editor ou com dois cliques no `Grafo.html` | Modificar o Grafo ou criar versões derivadas |
+| Baixar e usar de graça, como app desktop (`Grafo.exe`), servidor completo, só o editor ou com dois cliques no `Grafo.html` | Modificar o Grafo ou criar versões derivadas |
 | Configurar pelo `.env` e pelas preferências, estilos e bibliotecas do editor | Copiar o código, no todo ou em parte, para outros projetos |
 | Usar como quiser o que você cria ou exporta, inclusive em projetos comerciais | Redistribuir, publicar ou vender o Grafo |
 

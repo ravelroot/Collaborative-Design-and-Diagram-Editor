@@ -34,6 +34,11 @@ before(async () => {
   await new Promise((r) => setTimeout(r, 600));
   browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, acceptDownloads: true });
+  await ctx.addInitScript(() => {
+    try {
+      localStorage.setItem('grafo:tutorial', '"declined"');
+    } catch {}
+  });
   page = await ctx.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
@@ -192,6 +197,78 @@ test('abre com dois cliques pelo index.html e pelo web/index.html', async () => 
     assert.deepEqual(errors, []);
     await p.close();
   }
+});
+
+test('tutorial da primeira abertura: aceitar, avançar, pular e reabrir', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const p = await ctx.newPage();
+  const errors = [];
+  p.on('pageerror', (e) => errors.push(e.message));
+  await p.goto(`http://localhost:${port}/`);
+  await p.waitForSelector('.tour-welcome', { timeout: 30000 });
+  assert.match(await p.locator('.tour-card h2').textContent(), /Bem-vindo ao Grafo/);
+  await p.getByRole('button', { name: 'Ver tutorial' }).click();
+  assert.match(await p.locator('.tour-step').textContent(), /^1 de \d+$/);
+  assert.ok((await p.locator('.tour-ring').count()) >= 1);
+  await p.getByRole('button', { name: 'Próximo' }).click();
+  assert.match(await p.locator('.tour-step').textContent(), /^2 de/);
+  await p.keyboard.press('ArrowRight');
+  assert.match(await p.locator('.tour-step').textContent(), /^3 de/);
+  await p.getByRole('button', { name: 'Pular tutorial' }).click();
+  assert.equal(await p.locator('.tour').count(), 0);
+  assert.equal(await p.evaluate(() => localStorage.getItem('grafo:tutorial')), '"declined"');
+  await p.reload();
+  await p.waitForFunction(() => window.grafo && window.grafo.editor);
+  await p.waitForTimeout(800);
+  assert.equal(await p.locator('.tour').count(), 0);
+  await p.getByRole('button', { name: 'Ajuda' }).click();
+  await p.getByRole('menuitem', { name: /Tutorial rápido/ }).click();
+  await p.waitForSelector('.tour-card .tour-step');
+  for (let i = 0; i < 12 && (await p.locator('.tour').count()); i++) {
+    const next = p.getByRole('button', { name: /Próximo|Começar a criar/ });
+    await next.click();
+  }
+  assert.equal(await p.locator('.tour').count(), 0);
+  assert.equal(await p.evaluate(() => localStorage.getItem('grafo:tutorial')), '"finished"');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('ponte do app desktop: salvar pela janela do Windows e F11', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  await ctx.addInitScript(() => {
+    try {
+      localStorage.setItem('grafo:tutorial', '"declined"');
+    } catch {}
+    window.__calls = [];
+    window.grafoDesktop = Object.freeze({
+      version: '0.0.0',
+      toggleFullscreen: () => window.__calls.push(['fullscreen']),
+      quit: () => window.__calls.push(['quit']),
+      saveDialog: async (o) => {
+        window.__calls.push(['dialog', o]);
+        return 'C:\\Temp\\' + o.name;
+      },
+      writeFile: async (path, data) => {
+        window.__calls.push(['write', path, data.length]);
+      },
+    });
+  });
+  const p = await ctx.newPage();
+  await p.goto(pathToFileURL(path.join(root, 'Grafo.html')).href);
+  await p.waitForFunction(() => window.grafo && window.grafo.editor, null, { timeout: 30000 });
+  await p.keyboard.press('Control+s');
+  await p.waitForFunction(() => window.__calls.some((c) => c[0] === 'write'));
+  await p.keyboard.press('F11');
+  const calls = await p.evaluate(() => window.__calls);
+  const dialog = calls.find((c) => c[0] === 'dialog')[1];
+  assert.equal(dialog.extension, 'grafo');
+  assert.equal(dialog.description, 'Projeto do Grafo');
+  assert.ok(calls.find((c) => c[0] === 'write')[2] > 100);
+  assert.ok(calls.some((c) => c[0] === 'fullscreen'));
+  assert.match(await p.locator('#statusbar').textContent(), /App desktop/);
+  assert.equal(typeof (await p.evaluate(() => typeof window.__grafoBeforeClose)), 'string');
+  await ctx.close();
 });
 
 test('sem erros de JavaScript', () => {

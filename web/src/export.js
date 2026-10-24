@@ -311,14 +311,14 @@ export const exportNodes = async (store, roots, format, { scale = 2, background 
   const base = safeName(name);
   if (format === 'svg') {
     const { svg } = toSVG(store, roots, { background });
-    download(new Blob([svg], { type: 'image/svg+xml' }), `${base}.svg`);
+    await download(new Blob([svg], { type: 'image/svg+xml' }), `${base}.svg`);
     return;
   }
   if (format === 'png' || format === 'jpg') {
     const { svg, width, height } = toSVG(store, roots, { background });
     const c = await svgToCanvas(svg, width, height, scale, format === 'jpg' ? background || '#FFFFFF' : null);
     const blob = await canvasBlob(c, format === 'jpg' ? 'image/jpeg' : 'image/png', 0.92);
-    download(blob, `${base}.${format}`);
+    await download(blob, `${base}.${format}`);
     return;
   }
   if (format === 'pdf') {
@@ -329,7 +329,7 @@ export const exportNodes = async (store, roots, format, { scale = 2, background 
       const blob = await canvasBlob(c, 'image/jpeg', 0.94);
       pages.push({ width, height, pxW: c.width, pxH: c.height, jpeg: new Uint8Array(await blob.arrayBuffer()) });
     }
-    download(await buildPDF(pages), `${base}.pdf`);
+    await download(await buildPDF(pages), `${base}.pdf`);
   }
 };
 
@@ -342,7 +342,7 @@ export const thumbnail = async (store, roots, size = 320) => {
 
 export const saveGrafoFile = (store) => {
   const data = store.toJSON();
-  download(new Blob([JSON.stringify(data)], { type: 'application/json' }), `${safeName(store.name)}.grafo`);
+  return Promise.resolve(download(new Blob([JSON.stringify(data)], { type: 'application/json' }), `${safeName(store.name)}.grafo`)).catch(() => null);
 };
 
 export const importSvgAsImage = async (file) => {
