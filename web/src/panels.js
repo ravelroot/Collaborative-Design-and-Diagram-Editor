@@ -1839,7 +1839,7 @@ export const logoSvg = () => {
   s.setAttribute('aria-hidden', 'true');
   const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   p.setAttribute('fill', 'currentColor');
-  p.setAttribute('d', 'M6 6h1v1h-1zM6 7h2v1h-2zM6 8h3v1h-3zM6 9h4v1h-4zM12 9h1v1h-1zM6 10h5v1h-5zM12 10h2v1h-2zM6 11h5v1h-5zM12 11h3v1h-3zM6 12h5v1h-5zM12 12h4v1h-4zM6 13h3v1h-3zM12 13h5v1h-5zM6 14h1v1h-1zM8 14h2v1h-2zM12 14h6v1h-6zM9 15h2v1h-2zM12 15h7v1h-7zM12 16h3v1h-3zM12 17h1v1h-1zM14 17h2v1h-2zM15 18h2v1h-2z');
+  p.setAttribute('d', 'M6 6h13v1h-13zM6 7h13v1h-13zM6 8h2v1h-2zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM6 9h2v1h-2zM6 10h3v1h-3zM14 10h1v1h-1zM6 11h2v1h-2zM14 11h1v1h-1zM6 12h3v1h-3zM6 13h2v1h-2zM14 13h1v1h-1zM6 14h3v1h-3zM10 14h1v1h-1zM12 14h5v1h-5zM18 14h1v1h-1zM6 15h2v1h-2zM6 16h3v1h-3zM14 16h1v1h-1zM6 17h2v1h-2zM14 17h1v1h-1zM6 18h3v1h-3z');
   s.append(p);
   return s;
 };
