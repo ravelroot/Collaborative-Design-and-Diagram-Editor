@@ -7,6 +7,7 @@
 <p align="center">
   Editor colaborativo de design de interfaces e de diagramas que roda no navegador. Desenhe telas com frames, vetores, caneta, texto e imagens, organize com auto layout, restrições, componentes, estilos e operações booleanas, monte fluxogramas, UML, entidade-relacionamento, BPMN, redes e organogramas com conectores que desviam das formas, ligue os frames num protótipo clicável e edite tudo junto com outras pessoas, vendo os cursores em tempo real. Exporta PNG, JPG, SVG, PDF e o próprio arquivo <code>.grafo</code>.<br>
   Roda de três maneiras: app desktop para Windows (<code>Grafo.exe</code>), servidor completo com colaboração (Docker Compose) ou com dois cliques no <code>Grafo.html</code> (ou no <code>index.html</code>), sem instalar nada.<br>
+  Ou abra direto no navegador, sem baixar nada: <a href="https://ravelroot.github.io/Collaborative-Design-and-Diagram-Editor/">ravelroot.github.io/Collaborative-Design-and-Diagram-Editor</a>.<br>
   Pronto para baixar e usar.
 </p>
 
@@ -306,6 +307,8 @@ Abre em `http://localhost:5173`, salva no navegador e as abas do mesmo arquivo c
 
 Baixe o [`Grafo.html`](Grafo.html) e abra com dois cliques. O editor inteiro, com o núcleo WebAssembly embutido, abre sem servidor e sem internet, com uma Content-Security-Policy que só deixa rodar o próprio script (conferido por hash SHA-256) e bloqueia qualquer conexão de rede. Os arquivos ficam em **Arquivo → Arquivos recentes** e podem ser salvos e abertos como `.grafo`.
 
+Para usar sem baixar, abra a [versão online](https://ravelroot.github.io/Collaborative-Design-and-Diagram-Editor/): é o mesmo `Grafo.html`, publicado no GitHub Pages, e funciona do mesmo jeito (a colaboração entre pessoas continua sendo do servidor).
+
 | Arquivo | O que acontece ao dar dois cliques |
 |---|---|
 | `Grafo.html` | Abre o editor inteiro |
@@ -454,7 +457,7 @@ scripts/                    build do editor (esbuild), do Grafo.html e do Grafo.
 tests/js/                   testes do núcleo e do editor
 tests/e2e/                  testes ponta a ponta (Playwright)
 docs/                       manuais em PDF e imagens do README
-.github/workflows/          CI
+.github/workflows/          CI e publicação no GitHub Pages
 Dockerfile, docker-compose.yml, .env.example
 ```
 
