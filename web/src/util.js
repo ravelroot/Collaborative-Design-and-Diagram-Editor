@@ -152,6 +152,7 @@ const ICONS = {
   ratio: 'M9 7H6a3 3 0 0 0 0 6h3M15 7h3a3 3 0 0 1 0 6h-3M8 10h8',
   swap: 'M7 4v13M3 13l4 4 4-4M17 20V7M13 11l4-4 4 4',
   tidy: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  palette: 'M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8zM7.5 12.5h.01M9.5 8h.01M14.5 8h.01M17 12h.01',
 };
 
 export const icon = (name, size = 18) => {
@@ -276,6 +277,22 @@ export const storage = {
     } catch {}
   },
 };
+
+export const PALETTES = [
+  { id: 'grafo', colors: ['#E6DDCE', '#A3B4BE', '#F6E4A6', '#5D1C16'] },
+  { id: 'bento', colors: ['#F5F4F4', '#BAB7B6', '#4D4B4B', '#000000'] },
+  { id: 'sonda', colors: ['#F3F1EC', '#7FA7B8', '#17212B', '#A8235A'] },
+  { id: 'nexo', colors: ['#E8E8E8', '#D9D1CE', '#AB9D9D', '#000000'] },
+];
+
+export const applyPalette = (id) => {
+  const p = PALETTES.find((x) => x.id === id) || PALETTES[0];
+  if (p === PALETTES[0]) delete document.documentElement.dataset.palette;
+  else document.documentElement.dataset.palette = p.id;
+  return p.id;
+};
+
+export const canvasColor = () => normHex(getComputedStyle(document.documentElement).getPropertyValue('--canvas'), document.documentElement.dataset.theme === 'dark' ? '#221B18' : '#E9E4DA');
 
 const NAMES = ['Ana', 'Bruno', 'Carla', 'Davi', 'Elisa', 'Felipe', 'Gabi', 'Heitor', 'Iara', 'João', 'Luana', 'Marcos', 'Nina', 'Otávio', 'Paula', 'Rafa', 'Sofia', 'Tiago'];
 const COLORS = ['#5D1C16', '#7A6E46', '#5C4034', '#3F6A80', '#8F2A1F', '#55602F', '#9A5B2E', '#6B4E71'];

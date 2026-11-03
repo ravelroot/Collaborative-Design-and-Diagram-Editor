@@ -1,4 +1,4 @@
-import { el, icon, clamp, round, normHex, rgba, pickFile, readDataURL, loadImage, parseCSV, download, safeName, uid, userColors, storage, calc } from './util.js';
+import { el, icon, clamp, round, normHex, rgba, pickFile, readDataURL, loadImage, parseCSV, download, safeName, uid, userColors, storage, calc, PALETTES, canvasColor } from './util.js';
 import { TOOLS } from './editor.js';
 import { SHAPES, LIBRARIES, shapeDef, nodeParts } from './shapes.js';
 import { isContainer, hasText, nodeBounds, union, FONT_STACKS, fitText } from './geom.js';
@@ -105,6 +105,7 @@ export class UI {
     d.shareBtn.onclick = () => this.shareDialog();
     d.zoomBtn.onclick = (e) => this.zoomMenu(e.currentTarget);
     d.themeBtn.onclick = () => this.app.toggleTheme();
+    d.paletteBtn.onclick = (e) => this.paletteMenu(e.currentTarget);
     const signal = this.abort.signal;
     d.fileName.addEventListener('change', () => {
       this.store.name = d.fileName.value.trim() || 'Sem título';
@@ -133,6 +134,7 @@ export class UI {
     document.title = `${this.store.name} · Grafo`;
     d.themeBtn.innerHTML = '';
     d.themeBtn.append(icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon'));
+    if (!d.paletteBtn.firstChild) d.paletteBtn.append(icon('palette'));
     const online = this.store.online;
     d.conn.className = 'conn' + (online ? '' : ' off');
     d.conn.innerHTML = '';
@@ -306,7 +308,7 @@ export class UI {
         menu.append(el('div', { class: 'menu-label', text: it.header }));
         continue;
       }
-      const b = el('button', { class: 'menu-item', role: 'menuitem', disabled: it.disabled }, el('span', {}, it.check !== undefined ? (it.check ? '✓ ' : '  ') : '', it.label), it.key ? el('kbd', { text: it.key }) : '');
+      const b = el('button', { class: 'menu-item', role: 'menuitem', disabled: it.disabled, 'aria-label': it.aria }, el('span', {}, it.check !== undefined ? (it.check ? '✓ ' : '  ') : '', it.label), it.key ? el('kbd', { text: it.key }) : '', it.swatches ? el('span', { class: 'swatches' }, it.swatches.map((c) => el('i', { style: { background: c } }))) : '');
       b.onclick = () => {
         this.closeMenu();
         it.run && it.run();
@@ -381,6 +383,14 @@ export class UI {
       { label: 'Ações rápidas…', key: 'Ctrl+K', run: () => this.commandPalette() },
     ];
     this.openMenu(null, items, { x, y });
+  }
+
+  paletteMenu(anchor) {
+    const current = document.documentElement.dataset.palette || PALETTES[0].id;
+    this.openMenu(anchor, [
+      { header: 'Paleta de cores' },
+      ...PALETTES.map((p, i) => ({ label: '', aria: `Paleta ${i + 1}`, check: p.id === current, swatches: p.colors, run: () => this.app.setPalette(p.id) })),
+    ]);
   }
 
   zoomMenu(anchor) {
@@ -1029,7 +1039,7 @@ export class UI {
     const s = el('div', { class: 'section' });
     s.append(el('div', { class: 'section-title' }, 'Página'));
     s.append(el('div', { class: 'hint', text: 'Cor de fundo da tela' }));
-    s.append(this.color(info.bg || (document.documentElement.dataset.theme === 'dark' ? '#221B18' : '#E9E4DA'), 1, (p) => {
+    s.append(this.color(info.bg || canvasColor(), 1, (p) => {
       if (p.color) store.transact(() => store.pageInfo.set(ed.page, { ...info, bg: p.color }));
     }, 'pagebg'));
     body.append(s);

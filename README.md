@@ -47,6 +47,7 @@
 - **App desktop:** o [`Grafo.exe`](Grafo.exe) abre maximizado numa janela própria do Windows, sem servidor e sem navegador; F11 alterna a tela cheia, os arquivos ficam neste computador e salvar ou exportar abre a janela **Salvar como** do Windows.
 - **Tutorial rápido:** na primeira vez que o Grafo abre, ele pergunta se você quer um tour de nove passos pelas ferramentas, painéis, navegação, colaboração e salvar. Dá para pular, e ele fica em **Ajuda → Tutorial rápido**.
 - **Leve e fluido:** a tela só é redesenhada quando algo muda, zoom de 2% a 25.600% no ponto do cursor (roda, pinça ou teclado, com animação suave), réguas, minimapa, grade de pixels, temas claro e escuro e interface que some com Ctrl+\\.
+- **Paletas de cores:** o botão de paleta no topo troca a interface entre a paleta original do Grafo e as do Bento, do Sonda e do Nexo, todas com versão clara e escura. A escolha fica salva e volta na próxima vez. Detalhes em [Paletas de cores](#paletas-de-cores).
 - **Seguro por padrão:** Content-Security-Policy restrita sem `eval`, nenhum dado do usuário entra como HTML, SVG importado é limpo, o servidor limita tamanho e taxa, confere UUIDs e tipos de imagem pelos bytes e degrada sem cair quando falta um serviço. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
 
 <p align="center">
@@ -58,6 +59,19 @@
   <img src="docs/images/tela-auto-layout.png" width="49%" alt="Cartão com auto layout vertical selecionado e a seção Auto layout no painel Design">
   <img src="docs/images/tela-componentes.png" width="49%" alt="Instância do botão com o texto substituído por Continuar e a seção Instância no painel">
 </p>
+
+## Paletas de cores
+
+O botão com o ícone de paleta, no canto superior direito ao lado do botão de tema, abre a lista **Paleta de cores**. A paleta escolhida vale para toda a interface (barra superior, painéis, menus, réguas, seleção, guias e o fundo da tela) e funciona junto com o tema claro ou escuro. As cores dos objetos do arquivo não mudam, e uma cor de fundo escolhida para a página continua valendo.
+
+| Paleta | De onde vem | Tema claro | Tema escuro |
+| --- | --- | --- | --- |
+| **Grafo** (padrão) | paleta original do Grafo | linho `#E6DDCE`, vinho `#5D1C16`, ardósia `#A3B4BE`, palha `#F6E4A6` | fundo `#1D1613`, destaque palha `#F6E4A6` |
+| **Bento** | painel administrativo Bento | mesa `#F5F4F4`, caixa `#FFFFFF`, tinta `#000000`, alta `#3E6B2A`, queda `#9B2F1E` | mesa `#020202`, caixa `#121111`, destaque `#FFFFFF` |
+| **Sonda** | motor de busca Sonda | papel `#F3F1EC`, folha `#FCFBF8`, tinta `#17212B`, água `#E3ECEF`, sinal `#A8235A` | papel `#0F161B`, água `#172A33`, sinal `#F0679A` |
+| **Nexo** | paleta original do Nexo | papel `#E8E8E8`, pó `#D9D1CE`, pedra `#BAB7B5`, malva `#AB9D9D`, tinta `#000000` | fundo `#000000`, superfície `#121111`, malva `#AB9D9D` |
+
+A escolha fica salva neste navegador (ou no app desktop) e é aplicada antes de a tela aparecer. As paletas são variáveis CSS em `:root[data-palette]` no [`web/css/grafo.css`](web/css/grafo.css), a lista do menu fica em `PALETTES` no [`web/src/util.js`](web/src/util.js), e o canvas lê o fundo e as cores de seleção dessas mesmas variáveis.
 
 ## Novo quadro: modelos e aula (1.2.0)
 

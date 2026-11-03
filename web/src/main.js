@@ -3,7 +3,7 @@ import { Renderer } from './render.js';
 import { Editor } from './editor.js';
 import { UI } from './panels.js';
 import { Engine } from './engine/index.js';
-import { uuid, storage } from './util.js';
+import { uuid, storage, applyPalette, canvasColor } from './util.js';
 import { seedDocument } from './seed.js';
 import { startTutorial, tutorialPending } from './tutorial.js';
 import { buildBoard, applyBoard, aulaStart, findTemplate } from './templates.js';
@@ -32,6 +32,7 @@ class App {
       shareBtn: $('shareBtn'),
       zoomBtn: $('zoomBtn'),
       themeBtn: $('themeBtn'),
+      paletteBtn: $('paletteBtn'),
       leftPanel: $('leftPanel'),
       rightPanel: $('rightPanel'),
       canvasWrap: $('canvasWrap'),
@@ -50,6 +51,7 @@ class App {
   async start() {
     const theme = storage.get('theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.dataset.theme = theme;
+    applyPalette(storage.get('palette', 'grafo'));
     const wasm = window.GRAFO_ENGINE_WASM || new URL('assets/engine.wasm', document.baseURI).href;
     const ok = await Engine.load(typeof wasm === 'string' && wasm.startsWith('data:') ? base64ToBytes(wasm) : wasm).catch(() => false);
     this.engineMode = ok ? 'WASM' : 'JS';
@@ -157,11 +159,17 @@ class App {
   }
 
   applyTheme() {
-    const dark = document.documentElement.dataset.theme === 'dark';
     const info = this.store.pageInfo.get(this.editor?.page) || {};
-    this.renderer.setBackground(info.bg || (dark ? '#221B18' : '#E9E4DA'));
+    this.renderer.setBackground(info.bg || canvasColor());
     this.renderer.labelBg = '#FAF6EF';
     if (this.editor) this.editor.invalidate();
+  }
+
+  setPalette(id) {
+    storage.set('palette', applyPalette(id));
+    this.applyTheme();
+    this.ui.updateTop();
+    this.ui.renderAll();
   }
 
   toggleTheme() {

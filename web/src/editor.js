@@ -1739,7 +1739,7 @@ export class Editor {
 
   theme() {
     const cs = getComputedStyle(document.documentElement);
-    return { accent: cs.getPropertyValue('--accent').trim() || '#5D1C16', text: cs.getPropertyValue('--text').trim(), dark: document.documentElement.dataset.theme === 'dark', surface: cs.getPropertyValue('--surface').trim(), faint: cs.getPropertyValue('--text-faint').trim(), border: cs.getPropertyValue('--border').trim() };
+    return { accent: cs.getPropertyValue('--accent').trim() || '#5D1C16', text: cs.getPropertyValue('--text').trim(), dark: document.documentElement.dataset.theme === 'dark', surface: cs.getPropertyValue('--surface').trim(), faint: cs.getPropertyValue('--text-faint').trim(), border: cs.getPropertyValue('--border').trim(), muted: cs.getPropertyValue('--text-muted').trim(), surface2: cs.getPropertyValue('--surface-2').trim(), accentText: cs.getPropertyValue('--accent-text').trim() };
   }
 
   drawOverlay() {
@@ -1748,7 +1748,7 @@ export class Editor {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.clearRect(0, 0, this.overlay.width, this.overlay.height);
     const th = this.theme();
-    const sel = th.dark ? '#F6E4A6' : '#5D1C16';
+    const sel = th.accent;
     const z = this.zoom;
     const S = (x, y) => this.toScreen(x, y);
     const polyPath = (pts) => {
@@ -1814,7 +1814,7 @@ export class Editor {
               const off = 16 / z;
               const dirs = { top: [0, -off], right: [off, 0], bottom: [0, off], left: [-off, 0] };
               const s = S(a.x + dirs[side][0], a.y + dirs[side][1]);
-              c.fillStyle = th.dark ? '#30251F' : '#FFFFFF';
+              c.fillStyle = th.dark ? th.surface2 : '#FFFFFF';
               c.strokeStyle = sel;
               c.lineWidth = 1.5;
               c.beginPath();
@@ -1900,7 +1900,7 @@ export class Editor {
           c.fillStyle = sel;
           roundRect(c, bs.x - tw / 2, bs.y + 8, tw, 18, 4);
           c.fill();
-          c.fillStyle = th.dark ? '#2B1D17' : '#FAF3E6';
+          c.fillStyle = th.accentText;
           c.textAlign = 'center';
           c.fillText(label, bs.x, bs.y + 21);
           c.textAlign = 'left';
@@ -2022,7 +2022,7 @@ export class Editor {
     }
     if (this.settings.grid && z >= 4) {
       const vp = this.r.viewport();
-      c.strokeStyle = rgba(th.dark ? '#EFE6D8' : '#2B1D17', 0.08);
+      c.strokeStyle = rgba(th.text, 0.08);
       c.lineWidth = 1;
       c.beginPath();
       for (let x = Math.floor(vp.x); x <= vp.x + vp.w; x++) {
@@ -2071,7 +2071,7 @@ export class Editor {
         c.fillStyle = col;
         roundRect(c, lx, ly, tw, 16, 3);
         c.fill();
-        c.fillStyle = th.dark ? '#2B1D17' : '#FAF3E6';
+        c.fillStyle = th.accentText;
         c.fillText(label, lx + 4, ly + 12);
       }
     }
@@ -2171,7 +2171,7 @@ export class Editor {
       if (box) {
         const a = ((axis === 'x' ? box.x : box.y) - (axis === 'x' ? this.camX : this.camY)) * z;
         const b = a + (axis === 'x' ? box.w : box.h) * z;
-        c.fillStyle = rgba(th.dark ? '#F6E4A6' : '#5D1C16', 0.16);
+        c.fillStyle = rgba(th.accent, 0.16);
         if (axis === 'x') c.fillRect(a, 0, b - a, 20);
         else c.fillRect(0, a, 20, b - a);
       }
@@ -2232,10 +2232,10 @@ export class Editor {
     this.minimapT = { k, ox, oy };
     for (const n of nodes) {
       const b = nodeBounds(n, this.store);
-      c.fillStyle = n.fill && n.fill.color ? rgba(n.fill.color, 0.85) : rgba(th.dark ? '#EFE6D8' : '#5C4034', 0.4);
+      c.fillStyle = n.fill && n.fill.color ? rgba(n.fill.color, 0.85) : rgba(th.dark ? th.text : th.muted, 0.4);
       c.fillRect(ox + b.x * k, oy + b.y * k, Math.max(1, b.w * k), Math.max(1, b.h * k));
     }
-    c.strokeStyle = th.dark ? '#F6E4A6' : '#5D1C16';
+    c.strokeStyle = th.accent;
     c.lineWidth = 1.5;
     c.strokeRect(ox + vp.x * k, oy + vp.y * k, vp.w * k, vp.h * k);
   }
