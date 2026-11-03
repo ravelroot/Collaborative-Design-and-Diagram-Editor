@@ -302,7 +302,7 @@ export class Renderer {
       const sg = new Graphics();
       for (const p of parts) {
         if (p.kind === 'line' || p.kind === 'dashed' || p.kind === 'ghost') continue;
-        tracePath(sg, p.d, shadow.x || 0, shadow.y || 4);
+        tracePath(sg, p.d, (n.flipX ? -1 : 1) * (shadow.x || 0), (n.flipY ? -1 : 1) * (shadow.y ?? 4));
         sg.fill({ color: hexToNum(shadow.color || '#000000'), alpha: shadow.alpha ?? 0.25 });
       }
       if (shadow.blur > 0) sg.filters = [new BlurFilter({ strength: shadow.blur / 2, quality: 3 })];
@@ -367,6 +367,20 @@ export class Renderer {
       } else {
         gfx.fill({ color: 0xd6bdb8, alpha: 0.5 });
       }
+    }
+    const fx = n.flipX ? -1 : 1;
+    const fy = n.flipY ? -1 : 1;
+    gfx.scale.set(fx, fy);
+    gfx.position.set(fx < 0 ? n.w : 0, fy < 0 ? n.h : 0);
+    if (v.shadow) {
+      v.shadow.scale.set(fx, fy);
+      v.shadow.position.set(fx < 0 ? n.w : 0, fy < 0 ? n.h : 0);
+    }
+    if (v.sprite && (fx < 0 || fy < 0)) {
+      const sp = v.sprite;
+      sp.scale.set(sp.scale.x * fx, sp.scale.y * fy);
+      if (fx < 0) sp.position.x = n.w - sp.position.x;
+      if (fy < 0) sp.position.y = n.h - sp.position.y;
     }
     if ((n.type === 'frame' || n.type === 'component') && n.clip !== false) {
       const kids = this.kidsOf(v);

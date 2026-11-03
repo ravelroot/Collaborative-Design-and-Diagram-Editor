@@ -83,6 +83,13 @@ export const resolveText = (n, store) => {
     const row = ds && ds.rows && ds.rows[n.data.row | 0];
     if (row) t = t.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (m, k) => (row[k] !== undefined ? row[k] : m));
   }
+  return applyCase(t, n.textCase);
+};
+
+export const applyCase = (t, mode) => {
+  if (mode === 'upper') return t.toLocaleUpperCase('pt-BR');
+  if (mode === 'lower') return t.toLocaleLowerCase('pt-BR');
+  if (mode === 'title') return t.toLocaleLowerCase('pt-BR').replace(/(^|[\s\-–—(\[{"'“‘/])(\p{L})/gu, (m, a, b) => a + b.toLocaleUpperCase('pt-BR'));
   return t;
 };
 
@@ -336,6 +343,8 @@ export const hitNode = (n, px, py, tol, store) => {
     return distToPolyline(r.points, px, py) <= tol + (n.strokeWidth || 2) / 2;
   }
   const l = toLocal(n, px, py);
+  if (n.flipX) l.x = n.w - l.x;
+  if (n.flipY) l.y = n.h - l.y;
   if (n.type === 'path') {
     const pts = flattenD(nodeParts(n)[0]?.d || '', 1)[0] || [];
     if (n.closed && n.fill && pointInPoly(pts, l.x, l.y)) return true;

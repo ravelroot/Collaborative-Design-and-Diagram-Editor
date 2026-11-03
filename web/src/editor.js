@@ -1,8 +1,9 @@
-import { uid, clamp, round, rgba, debounce, storage, hexToNum } from './util.js';
+import { uid, clamp, round, rgba, debounce, storage, hexToNum, toHex } from './util.js';
 import { SHAPES, shapeDef, flattenD, nodeParts } from './shapes.js';
 import { corners, aabb, union, intersects, contains, toLocal, rotatePoint, hitNode, isContainer, hasText, nodeBounds, anchorOf, nearestAnchor, connectorRoute, fitText, layoutText, fontCss, textBox, resolveText } from './geom.js';
 import { Engine } from './engine/index.js';
 import { LOCAL } from './doc.js';
+import { layoutTree } from './templates.js';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 const HANDLE_POS = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s: [0.5, 1], sw: [0, 1], w: [0, 0.5] };
@@ -32,6 +33,7 @@ export const TOOLS = [
   { sep: true },
   { id: 'hand', name: 'Mão', key: 'H', icon: 'hand' },
   { id: 'comment', name: 'Comentário', key: 'C', icon: 'comment' },
+  { id: 'eyedropper', name: 'Conta-gotas', key: 'I', icon: 'eyedropper' },
 ];
 
 const DEFAULT_FILL = { type: 'solid', color: '#D6BDB8', alpha: 1 };
@@ -39,6 +41,83 @@ const FRAME_FILL = { type: 'solid', color: '#FFFFFF', alpha: 1 };
 const DIAGRAM_FILL = { type: 'solid', color: '#FAF6EF', alpha: 1 };
 const DIAGRAM_STROKE = { color: '#5C4034', alpha: 1 };
 const STICKY_COLORS = ['#F6E4A6', '#D6BDB8', '#A3B4BE', '#C9D3A8', '#E6DDCE'];
+const FLIPPABLE = new Set(['rect', 'ellipse', 'polygon', 'star', 'shape', 'image']);
+const SIDE_FLIP = { h: { left: 'right', right: 'left' }, v: { top: 'bottom', bottom: 'top' } };
+export const STYLE_KEYS = ['fill', 'fillStyle', 'stroke', 'strokeWidth', 'strokeAlign', 'dash', 'radius', 'opacity', 'blend', 'effects', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textDecoration', 'lineHeight', 'letterSpacing', 'textColor', 'align', 'valign', 'textStyle', 'textCase'];
+const TEXT_KEYS = new Set(['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textDecoration', 'lineHeight', 'letterSpacing', 'textColor', 'align', 'valign', 'textStyle', 'textCase']);
+
+export const measureGaps = (a, b) => {
+  const out = [];
+  const inside = a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
+  const cy = a.y + a.h / 2;
+  const cx = a.x + a.w / 2;
+  if (inside) {
+    out.push({ axis: 'x', from: b.x, to: a.x, at: cy }, { axis: 'x', from: a.x + a.w, to: b.x + b.w, at: cy });
+    out.push({ axis: 'y', from: b.y, to: a.y, at: cx }, { axis: 'y', from: a.y + a.h, to: b.y + b.h, at: cx });
+    return out.filter((m) => m.to - m.from > 0.001);
+  }
+  const ys = Math.max(a.y, b.y);
+  const ye = Math.min(a.y + a.h, b.y + b.h);
+  const xs = Math.max(a.x, b.x);
+  const xe = Math.min(a.x + a.w, b.x + b.w);
+  const atY = ye > ys ? (ys + ye) / 2 : cy;
+  const atX = xe > xs ? (xs + xe) / 2 : cx;
+  const sepX = a.x + a.w <= b.x || b.x + b.w <= a.x;
+  const sepY = a.y + a.h <= b.y || b.y + b.h <= a.y;
+  if (a.x + a.w <= b.x) out.push({ axis: 'x', from: a.x + a.w, to: b.x, at: atY, ext: ye > ys ? null : b.y + b.h / 2 });
+  else if (b.x + b.w <= a.x) out.push({ axis: 'x', from: b.x + b.w, to: a.x, at: atY, ext: ye > ys ? null : b.y + b.h / 2 });
+  if (a.y + a.h <= b.y) out.push({ axis: 'y', from: a.y + a.h, to: b.y, at: atX, ext: xe > xs ? null : b.x + b.w / 2 });
+  else if (b.y + b.h <= a.y) out.push({ axis: 'y', from: b.y + b.h, to: a.y, at: atX, ext: xe > xs ? null : b.x + b.w / 2 });
+  if (!sepX && !sepY) {
+    for (const [p, q] of [[a.x, b.x], [a.x + a.w, b.x + b.w]]) if (Math.abs(p - q) > 0.001) out.push({ axis: 'x', from: Math.min(p, q), to: Math.max(p, q), at: atY });
+    for (const [p, q] of [[a.y, b.y], [a.y + a.h, b.y + b.h]]) if (Math.abs(p - q) > 0.001) out.push({ axis: 'y', from: Math.min(p, q), to: Math.max(p, q), at: atX });
+  }
+  return out;
+};
+
+export const gridLayout = (boxes, gap = 20) => {
+  const n = boxes.length;
+  if (!n) return [];
+  const items = boxes.map((b, i) => ({ i, b, cx: b.x + b.w / 2, cy: b.y + b.h / 2 }));
+  const medH = [...boxes].map((b) => b.h).sort((p, q) => p - q)[Math.floor(n / 2)] || 1;
+  const byY = [...items].sort((p, q) => p.cy - q.cy || p.cx - q.cx);
+  let rows = [];
+  for (const it of byY) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(row.cy - it.cy) <= medH / 2) {
+      row.items.push(it);
+      row.cy = row.items.reduce((s, r) => s + r.cy, 0) / row.items.length;
+    } else rows.push({ cy: it.cy, items: [it] });
+  }
+  const widest = Math.max(...rows.map((r) => r.items.length));
+  const cols = rows.length === 1 ? n : rows.length === n ? 1 : widest;
+  if (rows.length > 1 && rows.length < n && rows.some((r) => r.items.length !== widest && r !== rows[rows.length - 1])) {
+    const c = Math.ceil(Math.sqrt(n));
+    const ordered = rows.flatMap((r) => r.items.sort((p, q) => p.cx - q.cx));
+    rows = [];
+    for (let i = 0; i < ordered.length; i += c) rows.push({ items: ordered.slice(i, i + c) });
+  } else {
+    const ordered = rows.flatMap((r) => r.items.sort((p, q) => p.cx - q.cx));
+    rows = [];
+    for (let i = 0; i < ordered.length; i += cols) rows.push({ items: ordered.slice(i, i + cols) });
+  }
+  const ncols = Math.max(...rows.map((r) => r.items.length));
+  const colW = Array.from({ length: ncols }, (_, c) => Math.max(...rows.map((r) => (r.items[c] ? r.items[c].b.w : 0))));
+  const rowH = rows.map((r) => Math.max(...r.items.map((it) => it.b.h)));
+  const x0 = Math.min(...boxes.map((b) => b.x));
+  const y0 = Math.min(...boxes.map((b) => b.y));
+  const out = new Array(n);
+  let y = y0;
+  rows.forEach((r, ri) => {
+    let x = x0;
+    r.items.forEach((it, ci) => {
+      out[it.i] = { x: Math.round(x), y: Math.round(y) };
+      x += colW[ci] + gap;
+    });
+    y += rowH[ri] + gap;
+  });
+  return out;
+};
 
 export class Editor {
   constructor(store, renderer, dom) {
@@ -60,11 +139,14 @@ export class Editor {
     this.dirty = true;
     this.listeners = new Set();
     this.mouse = { x: 0, y: 0, sx: 0, sy: 0 };
-    this.settings = { rulers: true, minimap: true, pixelSnap: true, snap: true, grid: false, outlines: false, ...storage.get('settings', {}) };
+    this.settings = { rulers: true, minimap: true, pixelSnap: true, snap: true, grid: false, outlines: false, guides: true, ...storage.get('settings', {}) };
     this.clipboard = null;
     this.tween = null;
     this.editing = null;
     this.stickyIdx = 0;
+    this.measuring = false;
+    this.lastDup = null;
+    this.propClipboard = null;
     this.lastClick = { t: 0, x: 0, y: 0 };
     this.sendCursor = debounce(() => this.pushPresence(), 30);
     this.overlay = dom.overlay;
@@ -171,6 +253,51 @@ export class Editor {
       this.emit({ pickImage: true });
       this.tool = 'select';
     }
+  }
+
+  async pickScreenColor() {
+    if (typeof window === 'undefined' || !window.EyeDropper) return false;
+    try {
+      const r = await new window.EyeDropper().open();
+      if (r && r.sRGBHex) this.applyPickedColor(r.sRGBHex);
+    } catch {}
+    return true;
+  }
+
+  sampleColorAt(wx, wy) {
+    const order = this.drawOrder();
+    for (let i = order.length - 1; i >= 0; i--) {
+      const n = order[i];
+      if (!this.isVisible(n) || n.type === 'group') continue;
+      if (!hitNode(n, wx, wy, 2 / this.zoom, this.store)) continue;
+      if (n.type === 'text') return n.fill?.color || '#2B1D17';
+      if (n.fill && n.fill.type === 'solid' && n.fill.color) return n.fill.color;
+      if (n.fill && n.fill.type === 'linear' && n.fill.stops?.length) return n.fill.stops[0].color;
+      if (n.stroke && n.stroke.color && (n.type === 'connector' || n.type === 'path')) return n.stroke.color;
+      if (n.fill === null && n.stroke) return n.stroke.color;
+    }
+    return null;
+  }
+
+  applyPickedColor(raw) {
+    const hex = toHex(raw);
+    if (!hex) return;
+    const ids = [...this.sel].filter((id) => !this.isLocked(this.store.get(id) || {}));
+    if (ids.length) {
+      this.setProp((n) => {
+        if (n.type === 'text') return { fill: { type: 'solid', color: hex, alpha: n.fill?.alpha ?? 1 } };
+        if (n.type === 'connector' || (n.type === 'path' && !n.fill)) return { stroke: { ...(n.stroke || { alpha: 1 }), color: hex } };
+        if (n.type === 'group') return null;
+        return { fill: { type: 'solid', color: hex, alpha: n.fill?.type === 'solid' ? n.fill.alpha ?? 1 : 1 }, fillStyle: undefined };
+      }, ids);
+      this.emit({ toast: `Cor ${hex} aplicada` });
+    } else {
+      try {
+        navigator.clipboard && navigator.clipboard.writeText(hex).catch(() => {});
+      } catch {}
+      this.emit({ toast: `Cor ${hex} copiada` });
+    }
+    this.lastPicked = hex;
   }
 
   stopCapture() {
@@ -304,10 +431,77 @@ export class Editor {
     return set;
   }
 
+  pageGuides() {
+    const info = this.store.pageInfo.get(this.page);
+    return info && Array.isArray(info.guides) ? info.guides : [];
+  }
+
+  setGuides(list) {
+    const info = this.store.pageInfo.get(this.page);
+    if (!info) return;
+    this.commit(() => this.store.pageInfo.set(this.page, { ...info, guides: list }));
+  }
+
+  clearGuides() {
+    if (this.pageGuides().length) this.setGuides([]);
+  }
+
+  guideAt(sx, sy) {
+    if (!this.settings.guides) return null;
+    for (const g of this.pageGuides()) {
+      const s = g.axis === 'x' ? this.toScreen(g.v, 0).x : this.toScreen(0, g.v).y;
+      if (Math.abs((g.axis === 'x' ? sx : sy) - s) <= 3) return g;
+    }
+    return null;
+  }
+
+  startGuide(e, axis, guide = null) {
+    e.preventDefault();
+    const g = guide ? { ...guide } : { id: 'g' + uid(8), axis, v: 0 };
+    this.guideDrag = g;
+    const host = this.dom.stageHost.getBoundingClientRect();
+    const move = (ev) => {
+      const sx = ev.clientX - host.left;
+      const sy = ev.clientY - host.top;
+      const w = this.toWorld(sx, sy);
+      let v = g.axis === 'x' ? w.x : w.y;
+      v = this.settings.pixelSnap || this.zoom < 4 ? Math.round(v) : round(v, 10);
+      g.v = v;
+      g.out = g.axis === 'x' ? sx < 0 : sy < 0;
+      g.sx = sx;
+      g.sy = sy;
+      this.invalidate();
+    };
+    const up = (ev) => {
+      removeEventListener('pointermove', move, true);
+      removeEventListener('pointerup', up, true);
+      move(ev);
+      this.guideDrag = null;
+      const rest = this.pageGuides().filter((x) => x.id !== g.id);
+      if (g.out) {
+        if (guide) this.setGuides(rest);
+      } else this.setGuides([...rest, { id: g.id, axis: g.axis, v: g.v }]);
+      if (!this.settings.guides) {
+        this.settings.guides = true;
+        this.saveSettings();
+      }
+      this.invalidate();
+    };
+    addEventListener('pointermove', move, true);
+    addEventListener('pointerup', up, true);
+    move(e);
+  }
+
   snapCandidates(exclude) {
     const xs = [];
     const ys = [];
     const vp = this.r.viewport();
+    if (this.settings.guides) {
+      for (const g of this.pageGuides()) {
+        if (g.axis === 'x') xs.push({ v: g.v, b: { x: g.v, y: vp.y, w: 0, h: vp.h } });
+        else ys.push({ v: g.v, b: { x: vp.x, y: g.v, w: vp.w, h: 0 } });
+      }
+    }
     for (const n of this.pageNodes()) {
       if (exclude.has(n.id) || n.type === 'connector' || !this.isVisible(n)) continue;
       const b = nodeBounds(n, this.store);
@@ -377,17 +571,19 @@ export class Editor {
 
   bind() {
     const o = this.overlay;
-    o.addEventListener('pointerdown', (e) => this.onDown(e));
-    o.addEventListener('pointermove', (e) => this.onMove(e));
-    o.addEventListener('pointerup', (e) => this.onUp(e));
-    o.addEventListener('pointercancel', (e) => this.onUp(e));
+    this.abort = new AbortController();
+    const signal = this.abort.signal;
+    o.addEventListener('pointerdown', (e) => this.onDown(e), { signal });
+    o.addEventListener('pointermove', (e) => this.onMove(e), { signal });
+    o.addEventListener('pointerup', (e) => this.onUp(e), { signal });
+    o.addEventListener('pointercancel', (e) => this.onUp(e), { signal });
     o.addEventListener('pointerleave', () => {
       this.hover = null;
       this.store.awareness.setLocalStateField('cursor', null);
       this.invalidate();
-    });
-    o.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
-    o.addEventListener('dblclick', (e) => this.onDouble(e));
+    }, { signal });
+    o.addEventListener('wheel', (e) => this.onWheel(e), { passive: false, signal });
+    o.addEventListener('dblclick', (e) => this.onDouble(e), { signal });
     o.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       const p = this.local(e);
@@ -396,8 +592,10 @@ export class Editor {
       if (hit && !this.sel.has(hit.id)) this.select([hit.id]);
       if (!hit) this.select([]);
       this.emit({ contextMenu: { x: e.clientX, y: e.clientY, world: w } });
-    });
-    o.addEventListener('dragover', (e) => e.preventDefault());
+    }, { signal });
+    this.dom.rulerX.addEventListener('pointerdown', (e) => e.button === 0 && this.startGuide(e, 'y'), { signal });
+    this.dom.rulerY.addEventListener('pointerdown', (e) => e.button === 0 && this.startGuide(e, 'x'), { signal });
+    o.addEventListener('dragover', (e) => e.preventDefault(), { signal });
     o.addEventListener('drop', (e) => {
       e.preventDefault();
       const p = this.local(e);
@@ -407,8 +605,24 @@ export class Editor {
       if (shape) this.insertShape(shape, w.x, w.y);
       else if (comp) this.insertInstance(comp, w.x, w.y);
       else if (e.dataTransfer.files.length) this.emit({ dropFiles: { files: [...e.dataTransfer.files], world: w } });
-    });
-    new ResizeObserver(() => this.resize()).observe(this.dom.stageHost);
+    }, { signal });
+    const alt = (e) => {
+      const on = e.type === 'keydown' ? e.key === 'Alt' || e.altKey : e.key === 'Alt' ? false : e.altKey;
+      if (on === this.measuring || this.drag) return;
+      this.measuring = on && this.sel.size > 0;
+      this.invalidate();
+      if (e.key === 'Alt' && e.type === 'keyup' && this.sel.size && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) e.preventDefault();
+    };
+    addEventListener('keydown', alt, { signal });
+    addEventListener('keyup', alt, { signal });
+    addEventListener('blur', () => {
+      if (this.measuring) {
+        this.measuring = false;
+        this.invalidate();
+      }
+    }, { signal });
+    this.ro = new ResizeObserver(() => this.resize());
+    this.ro.observe(this.dom.stageHost);
     this.resize();
   }
 
@@ -580,6 +794,17 @@ export class Editor {
       this.setTool('select');
       return;
     }
+    if (tool === 'eyedropper') {
+      this.setTool('select');
+      if (typeof window !== 'undefined' && window.EyeDropper) {
+        this.pickScreenColor();
+        return;
+      }
+      const color = this.sampleColorAt(w.x, w.y);
+      if (color) this.applyPickedColor(color);
+      else this.emit({ toast: 'Nenhuma cor encontrada nesse ponto' });
+      return;
+    }
     if (tool === 'connector' || tool === 'line' || tool === 'arrow') {
       const attach = tool === 'connector';
       const hit = attach ? this.hitTest(w.x, w.y) : null;
@@ -676,6 +901,14 @@ export class Editor {
       this.drag = { type: 'connect', from: { node: anchor.node, side: anchor.side }, start: w, tool: 'connector', moved: false };
       return;
     }
+    const guide = !(e.ctrlKey || e.metaKey) && this.guideAt(p.x, p.y);
+    if (guide) {
+      try {
+        this.overlay.releasePointerCapture(e.pointerId);
+      } catch {}
+      this.startGuide(e, guide.axis, guide);
+      return;
+    }
     const raw = this.hitTest(w.x, w.y, { deep: e.ctrlKey || e.metaKey });
     let hit = e.ctrlKey || e.metaKey ? raw : this.selectable(raw);
     if (hit && this.sel.size && !this.sel.has(hit.id)) {
@@ -749,6 +982,10 @@ export class Editor {
     this.mouse = { x: w.x, y: w.y, sx: p.x, sy: p.y };
     this.sendCursor();
     const d = this.drag;
+    if (this.measuring !== (e.altKey && !d)) {
+      this.measuring = e.altKey && !d;
+      this.invalidate();
+    }
     if (!d) {
       if (this.tool === 'select' || this.tool === 'scale' || this.tool === 'connector') {
         const handle = this.tool !== 'connector' ? this.handleAt(p.x, p.y) : null;
@@ -759,6 +996,7 @@ export class Editor {
         let cursor = this.tool === 'connector' ? 'crosshair' : 'default';
         if (handle) cursor = handle.kind === 'rotate' ? 'alias' : handle.kind === 'end' ? 'move' : CURSOR_FOR[handle.h] || 'default';
         else if (this.anchorHover(p.x, p.y)) cursor = 'copy';
+        else if (this.tool !== 'connector' && this.guideAt(p.x, p.y)) cursor = this.guideAt(p.x, p.y).axis === 'x' ? 'ew-resize' : 'ns-resize';
         this.overlay.style.cursor = cursor;
         if (prevHover !== this.hover) this.emit({ hover: true });
       }
@@ -908,11 +1146,12 @@ export class Editor {
     const relY = lp.y - anchorW.y;
     if (h.includes('e') || h.includes('w')) nw = fx === 1 ? relX : -relX;
     if (h.includes('n') || h.includes('s')) nh = fy === 1 ? relY : -relY;
-    if (e.shiftKey && h.length === 2) {
+    const keepRatio = e.shiftKey || (d.ids.size === 1 && !!d.start.get([...d.ids][0])?.lockRatio);
+    if (keepRatio && h.length === 2) {
       const r = box.w / Math.max(box.h, 0.01);
       if (Math.abs(nw / r) > Math.abs(nh)) nh = Math.sign(nh || 1) * Math.abs(nw / r);
       else nw = Math.sign(nw || 1) * Math.abs(nh * r);
-    } else if (e.shiftKey && h.length === 1) {
+    } else if (keepRatio && h.length === 1) {
       const r = box.w / Math.max(box.h, 0.01);
       if (h === 'e' || h === 'w') nh = Math.abs(nw / r);
       else nw = Math.abs(nh * r);
@@ -1461,8 +1700,17 @@ export class Editor {
     }
   }
 
+  destroy() {
+    this.dead = true;
+    this.finishText();
+    if (this.abort) this.abort.abort();
+    if (this.ro) this.ro.disconnect();
+    this.listeners.clear();
+  }
+
   loop() {
     const tick = (now) => {
+      if (this.dead) return;
       if (this.tween) this.tween(now);
       if (this.dirty) {
         this.dirty = false;
@@ -1644,17 +1892,19 @@ export class Editor {
             c.strokeRect(s.x - 4, s.y - 4, 8, 8);
           }
         }
-        const b = aabb(pts);
-        const bs = S(b.x + b.w / 2, b.y + b.h);
-        const label = this.rotHint !== null && this.rotHint !== undefined ? `${Math.round(single ? single.rotation || 0 : this.rotHint)}°` : `${round(box.w, 10)} × ${round(box.h, 10)}`;
-        const tw = c.measureText(label).width + 10;
-        c.fillStyle = sel;
-        roundRect(c, bs.x - tw / 2, bs.y + 8, tw, 18, 4);
-        c.fill();
-        c.fillStyle = th.dark ? '#2B1D17' : '#FAF3E6';
-        c.textAlign = 'center';
-        c.fillText(label, bs.x, bs.y + 21);
-        c.textAlign = 'left';
+        if (!this.measuring || this.drag) {
+          const b = aabb(pts);
+          const bs = S(b.x + b.w / 2, b.y + b.h);
+          const label = this.rotHint !== null && this.rotHint !== undefined ? `${Math.round(single ? single.rotation || 0 : this.rotHint)}°` : `${round(box.w, 10)} × ${round(box.h, 10)}`;
+          const tw = c.measureText(label).width + 10;
+          c.fillStyle = sel;
+          roundRect(c, bs.x - tw / 2, bs.y + 8, tw, 18, 4);
+          c.fill();
+          c.fillStyle = th.dark ? '#2B1D17' : '#FAF3E6';
+          c.textAlign = 'center';
+          c.fillText(label, bs.x, bs.y + 21);
+          c.textAlign = 'left';
+        }
       }
     }
     if (this.drag && this.drag.type === 'marquee') {
@@ -1666,6 +1916,8 @@ export class Editor {
       c.fillRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(a.x - b.x), Math.abs(a.y - b.y));
       c.strokeRect(Math.min(a.x, b.x) + 0.5, Math.min(a.y, b.y) + 0.5, Math.abs(a.x - b.x), Math.abs(a.y - b.y));
     }
+    if (this.measuring && selNodes.length && !this.drag) this.drawMeasure(c, S, selNodes);
+    if (this.settings.guides || this.guideDrag) this.drawGuides(c, th, sel);
     if (this.guides.length) {
       c.strokeStyle = '#D9480F';
       c.lineWidth = 1;
@@ -1785,6 +2037,120 @@ export class Editor {
       }
       c.stroke();
     }
+  }
+
+  drawGuides(c, th, col) {
+    const list = this.settings.guides ? this.pageGuides().filter((g) => !this.guideDrag || g.id !== this.guideDrag.id) : [];
+    if (this.guideDrag) list.push(this.guideDrag);
+    if (!list.length) return;
+    const W = this.overlay.width / (this.dpr || 1);
+    const H = this.overlay.height / (this.dpr || 1);
+    c.save();
+    c.font = '600 10px system-ui, sans-serif';
+    for (const g of list) {
+      const active = this.guideDrag && g.id === this.guideDrag.id;
+      if (active && g.out) continue;
+      c.strokeStyle = rgba(col, active ? 1 : 0.75);
+      c.lineWidth = 1;
+      c.beginPath();
+      if (g.axis === 'x') {
+        const x = Math.round(this.toScreen(g.v, 0).x) + 0.5;
+        c.moveTo(x, 0);
+        c.lineTo(x, H);
+      } else {
+        const y = Math.round(this.toScreen(0, g.v).y) + 0.5;
+        c.moveTo(0, y);
+        c.lineTo(W, y);
+      }
+      c.stroke();
+      if (active) {
+        const label = String(g.v);
+        const tw = c.measureText(label).width + 8;
+        const lx = g.axis === 'x' ? this.toScreen(g.v, 0).x + 4 : (g.sx ?? 0) + 10;
+        const ly = g.axis === 'x' ? (g.sy ?? 0) + 10 : this.toScreen(0, g.v).y + 4;
+        c.fillStyle = col;
+        roundRect(c, lx, ly, tw, 16, 3);
+        c.fill();
+        c.fillStyle = th.dark ? '#2B1D17' : '#FAF3E6';
+        c.fillText(label, lx + 4, ly + 12);
+      }
+    }
+    c.restore();
+  }
+
+  measureTarget(selNodes) {
+    const ids = new Set(selNodes.map((n) => n.id));
+    if (this.hover && !ids.has(this.hover)) {
+      const h = this.store.get(this.hover);
+      if (h && h.page === this.page && h.type !== 'connector' && !selNodes.some((n) => this.store.ancestors(h.id).some((a) => a.id === n.id))) return h;
+    }
+    const first = selNodes[0];
+    const parent = first && first.parent ? this.store.get(first.parent) : null;
+    if (parent && selNodes.every((n) => n.parent === parent.id)) return parent;
+    return null;
+  }
+
+  drawMeasure(c, S, selNodes) {
+    const target = this.measureTarget(selNodes);
+    if (!target) return;
+    const a = selNodes.length === 1 ? nodeBounds(selNodes[0], this.store) : this.selectionBox();
+    const b = nodeBounds(target, this.store);
+    const col = '#D9480F';
+    c.save();
+    c.strokeStyle = col;
+    c.lineWidth = 1;
+    c.setLineDash([3, 3]);
+    const tb = [S(b.x, b.y), S(b.x + b.w, b.y + b.h)];
+    c.strokeRect(Math.round(tb[0].x) + 0.5, Math.round(tb[0].y) + 0.5, Math.round(tb[1].x - tb[0].x), Math.round(tb[1].y - tb[0].y));
+    c.setLineDash([]);
+    c.font = '600 11px system-ui, sans-serif';
+    c.textAlign = 'center';
+    for (const m of measureGaps(a, b)) {
+      const p0 = m.axis === 'x' ? S(m.from, m.at) : S(m.at, m.from);
+      const p1 = m.axis === 'x' ? S(m.to, m.at) : S(m.at, m.to);
+      c.strokeStyle = col;
+      c.beginPath();
+      if (m.axis === 'x') {
+        const y = Math.round(p0.y) + 0.5;
+        c.moveTo(p0.x, y);
+        c.lineTo(p1.x, y);
+        c.moveTo(p0.x + 0.5, y - 4);
+        c.lineTo(p0.x + 0.5, y + 4);
+        c.moveTo(p1.x - 0.5, y - 4);
+        c.lineTo(p1.x - 0.5, y + 4);
+      } else {
+        const x = Math.round(p0.x) + 0.5;
+        c.moveTo(x, p0.y);
+        c.lineTo(x, p1.y);
+        c.moveTo(x - 4, p0.y + 0.5);
+        c.lineTo(x + 4, p0.y + 0.5);
+        c.moveTo(x - 4, p1.y - 0.5);
+        c.lineTo(x + 4, p1.y - 0.5);
+      }
+      c.stroke();
+      if (m.ext !== null && m.ext !== undefined) {
+        const end = m.axis === 'x' ? S(m.to > a.x ? m.to : m.from, m.ext) : S(m.ext, m.to > a.y ? m.to : m.from);
+        const start = m.axis === 'x' ? S(m.to > a.x ? m.to : m.from, m.at) : S(m.at, m.to > a.y ? m.to : m.from);
+        c.setLineDash([2, 3]);
+        c.beginPath();
+        c.moveTo(start.x, start.y);
+        c.lineTo(end.x, end.y);
+        c.stroke();
+        c.setLineDash([]);
+      }
+      const label = String(round(m.to - m.from, 10));
+      const tw = c.measureText(label).width + 8;
+      const mx = (p0.x + p1.x) / 2;
+      const my = (p0.y + p1.y) / 2;
+      const lx = m.axis === 'x' ? mx : mx + tw / 2 + 4;
+      const ly = m.axis === 'x' ? my - 12 : my;
+      c.fillStyle = col;
+      roundRect(c, lx - tw / 2, ly - 8, tw, 16, 3);
+      c.fill();
+      c.fillStyle = '#FFFFFF';
+      c.fillText(label, lx, ly + 4);
+    }
+    c.restore();
   }
 
   drawRulers() {
@@ -2192,14 +2558,281 @@ export class Editor {
   }
 
   flip(axis) {
-    const sel = this.selection;
+    const sel = this.selection.filter((n) => !this.isLocked(n));
+    if (!sel.length) return;
+    const box = this.selectionBox();
+    const h = axis === 'h';
+    const mid = h ? box.x * 2 + box.w : box.y * 2 + box.h;
+    const touched = new Set();
     this.commit(() => {
-      for (const n of sel) {
-        if (n.type === 'path') {
-          this.store.update(n.id, { points: n.points.map((p) => scalePt(p, axis === 'h' ? -1 : 1, axis === 'v' ? -1 : 1, axis === 'h' ? n.w : 0, axis === 'v' ? n.h : 0, axis === 'h', axis === 'v', true)) });
-        } else this.store.update(n.id, { rotation: axis === 'v' ? (180 - (n.rotation || 0)) % 360 : -(n.rotation || 0) });
+      for (const top of sel) {
+        for (const n of [top, ...this.store.descendants(top.id)]) {
+          if (touched.has(n.id)) continue;
+          touched.add(n.id);
+          if (n.type === 'connector') {
+            const patch = {};
+            for (const end of ['from', 'to']) if (n[end] && !n[end].node) patch[end] = h ? { ...n[end], x: round(mid - n[end].x) } : { ...n[end], y: round(mid - n[end].y) };
+            if (Object.keys(patch).length) this.store.update(n.id, patch);
+            continue;
+          }
+          const patch = h ? { x: round(mid - n.x - n.w) } : { y: round(mid - n.y - n.h) };
+          if (n.rotation) patch.rotation = round(-n.rotation, 100);
+          if (n.type === 'path' && n.points) patch.points = n.points.map((p) => scalePt(p, h ? -1 : 1, h ? 1 : -1, h ? n.w : 0, h ? 0 : n.h, h, !h, true));
+          else if (FLIPPABLE.has(n.type)) {
+            const k = h ? 'flipX' : 'flipY';
+            patch[k] = n[k] ? undefined : true;
+          }
+          if (n.fill && n.fill.type === 'linear') patch.fill = { ...n.fill, angle: round(h ? 180 - (n.fill.angle ?? 90) : -(n.fill.angle ?? 90), 100) };
+          this.store.update(n.id, patch);
+        }
+      }
+      for (const c of this.pageNodes()) {
+        if (c.type !== 'connector') continue;
+        const patch = {};
+        for (const end of ['from', 'to']) {
+          const e = c[end];
+          if (e && e.node && touched.has(e.node) && SIDE_FLIP[axis][e.side]) patch[end] = { ...e, side: SIDE_FLIP[axis][e.side] };
+        }
+        if (Object.keys(patch).length) this.store.update(c.id, patch);
       }
     });
+  }
+
+  swapFillStroke() {
+    const sel = this.selection.filter((n) => !['group', 'text', 'connector', 'boolean', 'instance'].includes(n.type) && !this.isLocked(n));
+    if (!sel.length) return;
+    this.setProp((n) => {
+      const fillColor = n.fill && n.fill.type === 'solid' ? n.fill.color : n.fill && n.fill.type === 'linear' ? n.fill.stops?.[0]?.color : null;
+      const strokeColor = n.stroke ? n.stroke.color : null;
+      if (!fillColor && !strokeColor) return null;
+      return {
+        fill: strokeColor ? { type: 'solid', color: strokeColor, alpha: n.stroke.alpha ?? 1 } : null,
+        stroke: fillColor ? { color: fillColor, alpha: n.fill.alpha ?? 1 } : null,
+        strokeWidth: fillColor ? n.strokeWidth || 1 : 0,
+        fillStyle: undefined,
+      };
+    }, sel.map((n) => n.id));
+  }
+
+  copyProps() {
+    const n = this.selection[0];
+    if (!n) return null;
+    const props = {};
+    for (const k of STYLE_KEYS) if (n[k] !== undefined) props[k] = structuredClone(n[k]);
+    if (!('fill' in props)) props.fill = null;
+    if (!('stroke' in props)) props.stroke = null;
+    this.propClipboard = { from: n.type, props };
+    try {
+      storage.set('props', this.propClipboard);
+    } catch {}
+    this.emit({ toast: 'Propriedades copiadas' });
+    return this.propClipboard;
+  }
+
+  pasteProps() {
+    const clip = this.propClipboard || storage.get('props', null);
+    if (!clip || !clip.props || !this.sel.size) return;
+    const src = clip.props;
+    this.setProp((n) => {
+      if (this.isLocked(n)) return null;
+      const p = {};
+      for (const [k, v] of Object.entries(src)) {
+        if (TEXT_KEYS.has(k) && !hasText(n)) continue;
+        if (n.type === 'group' && (k === 'fill' || k === 'stroke')) continue;
+        if (n.type === 'connector' && k === 'fill') continue;
+        if (n.type === 'text' && k === 'fill' && v && v.type !== 'solid') continue;
+        if (k === 'textColor' && n.type === 'text') continue;
+        p[k] = structuredClone(v);
+      }
+      if (n.type === 'text' && clip.from !== 'text' && src.textColor) p.fill = { type: 'solid', color: src.textColor, alpha: 1 };
+      if (n.type !== 'text' && clip.from === 'text' && src.fill) {
+        p.textColor = src.fill.color;
+        delete p.fill;
+      }
+      return p;
+    });
+    this.emit({ toast: 'Propriedades coladas' });
+  }
+
+  selectSibling(dir) {
+    const cur = this.selection[0];
+    const parent = cur ? cur.parent || null : this.entered || null;
+    const sib = this.store.childrenOf(parent, this.page).filter((n) => n.page === this.page && this.isVisible(n) && !this.isLocked(n));
+    if (!sib.length) return;
+    const i = cur ? sib.findIndex((n) => n.id === cur.id) : -1;
+    const next = sib[(i + (dir > 0 ? 1 : -1) + sib.length) % sib.length];
+    if (next.parent && this.store.get(next.parent)?.type === 'group') this.entered = next.parent;
+    this.select([next.id]);
+  }
+
+  fitToContent(ids = [...this.sel]) {
+    const targets = ids.map((id) => this.store.get(id)).filter((n) => n && (n.type === 'frame' || n.type === 'component' || n.type === 'section') && !this.isLocked(n));
+    let done = 0;
+    this.commit(() => {
+      for (const n of targets) {
+        const kids = this.store.childrenOf(n.id).filter((k) => k.type !== 'connector' && k.visible !== false);
+        if (!kids.length) continue;
+        const b = union(kids.map((k) => nodeBounds(k, this.store)));
+        const x = Math.floor(b.x);
+        const y = Math.floor(b.y);
+        const patch = { x, y, w: Math.max(1, Math.ceil(b.x + b.w) - x), h: Math.max(1, Math.ceil(b.y + b.h) - y) };
+        if (n.layout && n.layout.mode && n.layout.mode !== 'none') {
+          this.store.update(n.id, { layout: { ...n.layout, hug: true, hugCross: true } });
+          done++;
+          continue;
+        }
+        if (n.rotation) continue;
+        this.store.update(n.id, patch);
+        done++;
+      }
+    });
+    if (!done) this.emit({ toast: 'Selecione um frame ou seção com conteúdo' });
+  }
+
+  async originalSize(id) {
+    const n = this.store.get(id);
+    if (!n || n.type !== 'image') return;
+    const src = this.store.assetsY.get(n.src) || n.src;
+    const img = new Image();
+    img.src = src;
+    try {
+      await img.decode();
+    } catch {
+      return;
+    }
+    const w = img.naturalWidth || n.w;
+    const h = img.naturalHeight || n.h;
+    this.commit(() => this.store.update(id, { x: round(n.x + n.w / 2 - w / 2), y: round(n.y + n.h / 2 - h / 2), w, h }));
+  }
+
+  aulaDir() {
+    const info = this.store.pageInfo.get(this.page);
+    return (info && info.aula) || 'down';
+  }
+
+  treeEdges() {
+    const out = [];
+    for (const c of this.pageNodes()) {
+      if (c.type !== 'connector' || !c.from?.node || !c.to?.node) continue;
+      const a = this.store.get(c.from.node);
+      const b = this.store.get(c.to.node);
+      if (a && b && a.branch && b.branch) out.push([a.id, b.id, c.id]);
+    }
+    return out;
+  }
+
+  treeParent(id) {
+    const e = this.treeEdges().find(([, to]) => to === id);
+    return e ? e[0] : null;
+  }
+
+  addBranch(sibling = false) {
+    const n = this.selection[0];
+    if (!n || !n.branch || this.sel.size !== 1) return null;
+    const parentId = sibling ? this.treeParent(n.id) : n.id;
+    if (!parentId) return this.addBranch(false);
+    const parent = this.store.get(parentId);
+    const dir = this.aulaDir();
+    const ref = sibling ? n : this.treeEdges().filter(([f]) => f === parentId).map(([, t]) => this.store.get(t)).find(Boolean) || null;
+    const base = ref || n;
+    const w = ref ? ref.w : Math.max(120, Math.round(parent.w * 0.85));
+    const h = ref ? ref.h : Math.max(48, Math.round(parent.h * 0.8));
+    const off = dir === 'up' ? [0, -(parent.h + 80)] : dir === 'right' ? [parent.w + 80, 0] : [0, parent.h + 80];
+    let id;
+    this.commit(() => {
+      const fill = ref ? ref.fill : { type: 'solid', color: '#F6E4A6', alpha: 1 };
+      id = this.store.add({ type: 'shape', shape: base.shape === 'note' ? 'rounded' : base.shape || 'rounded', page: this.page, parent: parent.parent || null, name: 'Nova ideia', branch: true, x: round(parent.x + off[0]), y: round(parent.y + off[1]), w, h, fill: fill ? { ...fill } : null, stroke: base.stroke ? { ...base.stroke } : { color: '#5C4034', alpha: 1 }, strokeWidth: base.strokeWidth ?? 1.5, text: 'Nova ideia', fontSize: ref ? ref.fontSize || 14 : 14, fontWeight: 400, ...(ref && ref.textColor ? { textColor: ref.textColor } : {}) });
+      const sample = this.treeEdges()[0];
+      const conn = sample ? this.store.get(sample[2]) : null;
+      this.store.add({ type: 'connector', page: this.page, parent: null, name: 'Conector', x: 0, y: 0, w: 0, h: 0, from: { node: parentId, side: 'auto' }, to: { node: id, side: 'auto' }, routing: conn ? conn.routing : 'elbow', startCap: conn ? conn.startCap : dir === 'up' ? 'triangle' : 'none', endCap: conn ? conn.endCap : dir === 'up' ? 'none' : 'triangle', stroke: { color: '#2B1D17', alpha: 1 }, strokeWidth: 1.6, text: '' });
+    });
+    this.select([id]);
+    this.relayoutTree(parentId).then(() => {
+      if (this.store.get(id) && this.sel.has(id)) this.editText(id);
+    });
+    return id;
+  }
+
+  async relayoutTree(anchorId = null) {
+    const edges = this.treeEdges();
+    const ids = new Set();
+    for (const [a, b] of edges) {
+      ids.add(a);
+      ids.add(b);
+    }
+    for (const n of this.pageNodes()) if (n.branch) ids.add(n.id);
+    const nodes = [...ids].map((id) => this.store.get(id)).filter(Boolean);
+    if (nodes.length < 2) return;
+    const pos = layoutTree(nodes, edges.map(([a, b]) => [a, b]), this.aulaDir());
+    const roots = nodes.filter((n) => !edges.some(([, t]) => t === n.id));
+    const anchor = this.store.get(anchorId) && roots.some((r) => r.id === anchorId) ? this.store.get(anchorId) : roots[0] || nodes[0];
+    const ap = pos.get(anchor.id);
+    const dx = anchor.x - ap.x;
+    const dy = anchor.y - ap.y;
+    const targets = nodes.map((n) => ({ id: n.id, x0: n.x, y0: n.y, x1: round(pos.get(n.id).x + dx), y1: round(pos.get(n.id).y + dy) }));
+    await this.animateNodes(targets, 220);
+  }
+
+  async setAulaDir(dir) {
+    const info = this.store.pageInfo.get(this.page);
+    if (!info) return;
+    const was = this.aulaDir();
+    this.commit(() => {
+      this.store.pageInfo.set(this.page, { ...info, aula: dir });
+      if ((was === 'up') !== (dir === 'up')) {
+        for (const [, , cid] of this.treeEdges()) {
+          const c = this.store.get(cid);
+          this.store.update(cid, { startCap: c.endCap || 'none', endCap: c.startCap || 'none' });
+        }
+      }
+    });
+    await this.relayoutTree();
+    this.zoomToFit();
+  }
+
+  smartDuplicate() {
+    const ids = [...this.sel];
+    if (!ids.length) return [];
+    const L = this.lastDup;
+    let dx = 20;
+    let dy = 20;
+    if (L && L.out.length === ids.length && L.out.every((id) => this.sel.has(id))) {
+      const src = this.store.get(L.src);
+      const cur = this.store.get(L.out[0]);
+      if (src && cur) {
+        dx = round(cur.x - src.x);
+        dy = round(cur.y - src.y);
+      }
+    }
+    const first = this.store.get(ids[0]);
+    const inLayout = first && first.parent && this.store.get(first.parent)?.layout?.mode && this.store.get(first.parent).layout.mode !== 'none';
+    if (inLayout) dx = dy = 0;
+    const out = this.duplicate(ids, dx, dy);
+    if (out.length) this.lastDup = { src: ids[0], out };
+    return out;
+  }
+
+  async tidy(gap = null) {
+    const sel = this.selection.filter((n) => n.type !== 'connector' && !this.isLocked(n));
+    if (sel.length < 2) {
+      this.emit({ toast: 'Selecione dois ou mais objetos para organizar em grade' });
+      return;
+    }
+    const boxes = sel.map((n) => nodeBounds(n, this.store));
+    let g = gap;
+    if (g === null) {
+      const sorted = [...boxes].sort((a, b) => a.x - b.x);
+      const gaps = [];
+      for (let i = 1; i < sorted.length; i++) {
+        const v = sorted[i].x - (sorted[i - 1].x + sorted[i - 1].w);
+        if (v > 0) gaps.push(v);
+      }
+      gaps.sort((a, b) => a - b);
+      g = gaps.length ? clamp(Math.round(gaps[Math.floor(gaps.length / 2)]), 8, 200) : 20;
+    }
+    const pos = gridLayout(boxes, g);
+    const targets = sel.map((n, i) => ({ id: n.id, x0: n.x, y0: n.y, x1: round(n.x + pos[i].x - boxes[i].x), y1: round(n.y + pos[i].y - boxes[i].y) }));
+    await this.animateNodes(targets, 260);
   }
 
   nudge(dx, dy) {

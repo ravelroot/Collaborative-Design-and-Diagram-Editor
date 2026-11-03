@@ -2,9 +2,11 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import * as Y from 'yjs';
-import { calc, parseCSV, normHex, safeName, escapeXml, hexToNum, numToHex } from '../../web/src/util.js';
+import { calc, parseCSV, normHex, safeName, escapeXml, hexToNum, numToHex, toHex } from '../../web/src/util.js';
+import { measureGaps, gridLayout } from '../../web/src/editor.js';
+import { TEMPLATES, TEMPLATE_CATEGORIES, PATTERN_TEMPLATES, AULA_STARTS, buildBoard, applyBoard, aulaStart, boardPreview } from '../../web/src/templates.js';
 import { SHAPES, nodeParts, parseD, flattenD, pathD } from '../../web/src/shapes.js';
-import { rotatePoint, corners, aabb, union, toLocal, anchorOf, bestSide, distToPolyline, pointInPoly, hitNode, connectorRoute, isContainer } from '../../web/src/geom.js';
+import { rotatePoint, corners, aabb, union, toLocal, anchorOf, bestSide, distToPolyline, pointInPoly, hitNode, connectorRoute, isContainer, applyCase } from '../../web/src/geom.js';
 import { Store, LOCAL } from '../../web/src/doc.js';
 
 const rng = (seed) => {
@@ -129,6 +131,108 @@ describe('geometria', () => {
     assert.equal(connectorRoute({ ...c, routing: 'straight' }, s).points.length, 2);
     assert.equal(connectorRoute({ ...c, routing: 'curved' }, s).points.length, 25);
     assert.ok(isContainer({ type: 'frame' }) && !isContainer({ type: 'rect' }));
+    s.destroy();
+  });
+});
+
+describe('ferramentas de medida e organização', () => {
+  test('cores do conta-gotas em hex', () => {
+    assert.equal(toHex('rgb(93, 28, 22)'), '#5D1C16');
+    assert.equal(toHex('rgba(255,255,255,0.5)'), '#FFFFFF');
+    assert.equal(toHex('#a3b4be'), '#A3B4BE');
+    assert.equal(toHex('#abc'), '#AABBCC');
+    assert.equal(toHex('#11223344'), '#112233');
+    assert.equal(toHex('azul'), null);
+  });
+
+  test('distâncias entre objetos separados, sobrepostos e dentro do frame', () => {
+    const a = { x: 0, y: 0, w: 100, h: 50 };
+    const right = measureGaps(a, { x: 140, y: 10, w: 40, h: 40 });
+    assert.equal(right.length, 1);
+    assert.deepEqual([right[0].axis, right[0].to - right[0].from], ['x', 40]);
+    const diag = measureGaps(a, { x: 130, y: 90, w: 20, h: 20 });
+    assert.deepEqual(diag.map((m) => [m.axis, m.to - m.from]), [['x', 30], ['y', 40]]);
+    const inside = measureGaps({ x: 20, y: 30, w: 60, h: 40 }, { x: 0, y: 0, w: 100, h: 120 });
+    assert.deepEqual(inside.map((m) => m.to - m.from).sort((p, q) => p - q), [20, 20, 30, 50]);
+    const over = measureGaps(a, { x: 10, y: 0, w: 100, h: 50 });
+    assert.deepEqual(over.map((m) => [m.axis, m.to - m.from]), [['x', 10], ['x', 10]]);
+  });
+
+  test('maiúsculas, minúsculas e primeira letra maiúscula', () => {
+    assert.equal(applyCase('ação rápida', 'upper'), 'AÇÃO RÁPIDA');
+    assert.equal(applyCase('ÉRICA E JOÃO', 'lower'), 'érica e joão');
+    assert.equal(applyCase('olá, mundo-novo (teste)', 'title'), 'Olá, Mundo-Novo (Teste)');
+    assert.equal(applyCase('sem mudança', undefined), 'sem mudança');
+  });
+
+  test('espelhar acerta o clique em formas invertidas', () => {
+    const tri = { type: 'polygon', x: 0, y: 0, w: 100, h: 100, sides: 3, fill: { type: 'solid', color: '#000000', alpha: 1 } };
+    assert.equal(hitNode(tri, 50, 5, 0), hitNode({ ...tri, flipY: true }, 50, 95, 0));
+  });
+
+  test('organizar em grade mantém a ordem de leitura e o espaçamento', () => {
+    const boxes = [{ x: 205, y: 3, w: 100, h: 80 }, { x: 0, y: 0, w: 100, h: 80 }, { x: 4, y: 130, w: 60, h: 40 }, { x: 210, y: 120, w: 100, h: 60 }];
+    assert.deepEqual(gridLayout(boxes, 10), [{ x: 110, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 90 }, { x: 110, y: 90 }]);
+    const row = [{ x: 300, y: 0, w: 50, h: 50 }, { x: 0, y: 5, w: 80, h: 50 }, { x: 120, y: 2, w: 30, h: 50 }];
+    assert.deepEqual(gridLayout(row, 20).map((p) => p.x), [150, 0, 100]);
+    const col = [{ x: 0, y: 200, w: 50, h: 30 }, { x: 3, y: 0, w: 50, h: 30 }];
+    assert.deepEqual(gridLayout(col, 8), [{ x: 0, y: 38 }, { x: 0, y: 0 }]);
+    const scattered = Array.from({ length: 5 }, (_, i) => ({ x: i * 37, y: i * 91, w: 30, h: 30 }));
+    assert.equal(new Set(gridLayout(scattered, 10).map((p) => p.x)).size, 1);
+    assert.deepEqual(gridLayout([], 10), []);
+  });
+});
+
+describe('modelos prontos e aula', () => {
+  test('63 modelos em 10 categorias e 46 padrões que abrem como diagrama ou aula', () => {
+    assert.equal(TEMPLATES.length, 63);
+    assert.equal(TEMPLATE_CATEGORIES.length, 10);
+    assert.equal(PATTERN_TEMPLATES.length, 46);
+    assert.equal(AULA_STARTS.length, 3);
+    const counts = Object.fromEntries(TEMPLATE_CATEGORIES.map((c) => [c.id, TEMPLATES.filter((t) => t.cat === c.id).length]));
+    assert.deepEqual(counts, { uml: 16, process: 6, arch: 8, data: 6, infra: 6, security: 3, testing: 3, ux: 5, mgmt: 4, analysis: 6 });
+    const ids = [...TEMPLATES, ...PATTERN_TEMPLATES].map((t) => t.id);
+    assert.equal(new Set(ids).size, ids.length);
+  });
+
+  test('todo modelo monta um quadro válido no documento', () => {
+    const builds = [...TEMPLATES.map((t) => [t.id, t.build]), ...PATTERN_TEMPLATES.flatMap((t) => [[t.id, t.build], [t.id + ':aula', t.lesson]]), ...AULA_STARTS.map((t) => [t.id, aulaStart(t.dir)])];
+    for (const [id, fn] of builds) {
+      const s = newStore();
+      const page = s.pages.get(0);
+      const items = buildBoard(fn);
+      assert.ok(items.length >= 3, id);
+      const out = s.transact(() => applyBoard(s, page, items));
+      const nodes = out.map((n) => s.get(n));
+      assert.equal(nodes.filter(Boolean).length, out.length, id);
+      for (const n of nodes) {
+        if (n.type === 'connector') {
+          for (const end of [n.from, n.to]) assert.ok(end.node ? s.get(end.node) : Number.isFinite(end.x) && Number.isFinite(end.y), `${id}: ponta do conector`);
+          continue;
+        }
+        for (const k of ['x', 'y', 'w', 'h']) assert.ok(Number.isFinite(n[k]), `${id}: ${k} de ${n.name}`);
+        if (n.parent) assert.ok(s.get(n.parent), `${id}: pai de ${n.name}`);
+      }
+      assert.equal(nodes.filter((n) => n.type === 'connector').length, items.filter((i) => i.kind === 'edge').length, `${id}: conectores`);
+      const bodies = nodes.filter((n) => n.type !== 'connector');
+      assert.ok(Math.min(...bodies.map((n) => n.x)) === 0 && Math.min(...bodies.map((n) => n.y)) === 0, id);
+      assert.match(boardPreview(items), /^<svg /, id);
+      s.destroy();
+    }
+  });
+
+  test('aula marca as ramificações e o sentido inverso aponta para a raiz', () => {
+    const s = newStore();
+    const page = s.pages.get(0);
+    const out = s.transact(() => applyBoard(s, page, buildBoard(aulaStart('up'))));
+    const nodes = out.map((id) => s.get(id));
+    const shapes = nodes.filter((n) => n.type === 'shape');
+    assert.equal(shapes.length, 4);
+    assert.ok(shapes.every((n) => n.branch));
+    const root = shapes.find((n) => n.text === 'Como tudo terminou');
+    assert.ok(shapes.filter((n) => n !== root).every((n) => n.y + n.h <= root.y));
+    const conns = nodes.filter((n) => n.type === 'connector');
+    assert.ok(conns.every((c) => c.from.node === root.id && c.startCap === 'triangle' && c.endCap === 'none'));
     s.destroy();
   });
 });

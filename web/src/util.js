@@ -25,6 +25,15 @@ export const normHex = (v, fallback = '#000000') => {
   if (/^[0-9a-f]{3}$/i.test(s)) s = s.split('').map((c) => c + c).join('');
   return /^[0-9a-f]{6}$/i.test(s) ? '#' + s.toUpperCase() : fallback;
 };
+export const toHex = (v) => {
+  const s = String(v || '').trim();
+  const m = s.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i);
+  if (m) return numToHex((clamp(+m[1], 0, 255) << 16) | (clamp(+m[2], 0, 255) << 8) | clamp(+m[3], 0, 255));
+  const h = s.replace('#', '');
+  if (/^[0-9a-f]{8}$/i.test(h)) return '#' + h.slice(0, 6).toUpperCase();
+  const r = normHex(s, '');
+  return r || null;
+};
 export const rgba = (hex, a = 1) => {
   const n = hexToNum(hex);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
@@ -137,6 +146,12 @@ const ICONS = {
   wifioff: 'M3 3l18 18M8.5 16a5 5 0 0 1 7 0M5 12.5a10 10 0 0 1 5-2.7M2 9a15 15 0 0 1 4.6-3M16.6 9.6A10 10 0 0 1 19 12.5M12 19.5h.01',
   minimap: 'M3 5h18v14H3zM12 9h6v6h-6z',
   ruler: 'M3 17L17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2',
+  eyedropper: 'M14.5 4.5l5 5M17 2.5a2.1 2.1 0 0 1 3 3l-2.5 2.5-3-3zM15.5 6.5l-9 9-1 4 4-1 9-9M8 13h6',
+  search: 'M10.5 4a6.5 6.5 0 1 0 .01 0M20 20l-4.8-4.8',
+  command: 'M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z',
+  ratio: 'M9 7H6a3 3 0 0 0 0 6h3M15 7h3a3 3 0 0 1 0 6h-3M8 10h8',
+  swap: 'M7 4v13M3 13l4 4 4-4M17 20V7M13 11l4-4 4 4',
+  tidy: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
 };
 
 export const icon = (name, size = 18) => {

@@ -2,16 +2,19 @@ import { el, icon, clamp, round, normHex, rgba, pickFile, readDataURL, loadImage
 import { TOOLS } from './editor.js';
 import { SHAPES, LIBRARIES, shapeDef, nodeParts } from './shapes.js';
 import { isContainer, hasText, nodeBounds, union, FONT_STACKS, fitText } from './geom.js';
-import { exportNodes, saveGrafoFile, importSvgAsImage, toSVG } from './export.js';
+import { exportNodes, saveGrafoFile, importSvgAsImage, toSVG, svgToCanvas } from './export.js';
 import { present, presentableFrames } from './present.js';
 import { Store } from './doc.js';
 import { startTutorial } from './tutorial.js';
+import { TEMPLATES, TEMPLATE_CATEGORIES, PATTERN_TEMPLATES, AULA_STARTS, buildBoard, boardPreview, aulaStart } from './templates.js';
 
 const BLEND_NAMES = { normal: 'Normal', multiply: 'Multiplicar', screen: 'Tela', overlay: 'Sobrepor', darken: 'Escurecer', lighten: 'Clarear', 'color-dodge': 'Subexposição de cor', 'color-burn': 'Superexposição de cor', 'hard-light': 'Luz forte', 'soft-light': 'Luz suave', difference: 'Diferença', exclusion: 'Exclusão', hue: 'Matiz', saturation: 'Saturação', color: 'Cor', luminosity: 'Luminosidade' };
 const TYPE_ICON = { frame: 'frame', section: 'section', group: 'group', rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', image: 'image', sticky: 'sticky', shape: 'shapes', connector: 'connector', component: 'component', instance: 'instance', boolean: 'union' };
 const TYPE_NAME = { frame: 'Frame', section: 'Seção', group: 'Grupo', rect: 'Retângulo', ellipse: 'Elipse', polygon: 'Polígono', star: 'Estrela', path: 'Vetor', text: 'Texto', image: 'Imagem', sticky: 'Nota adesiva', shape: 'Forma', connector: 'Conector', component: 'Componente', instance: 'Instância', boolean: 'Booleana' };
 const FRAME_PRESETS = [['Celular', 390, 844], ['Celular grande', 430, 932], ['Tablet', 834, 1194], ['Notebook', 1280, 832], ['Desktop', 1440, 1024], ['Slide 16:9', 1920, 1080], ['A4', 595, 842], ['Post quadrado', 1080, 1080], ['Story', 1080, 1920]];
 const PALETTE = ['#5D1C16', '#A3B4BE', '#5C4034', '#E6DDCE', '#7A6E46', '#D6BDB8', '#F6E4A6', '#2B1D17', '#FFFFFF', '#000000'];
+const APP_VERSION = typeof GRAFO_VERSION !== 'undefined' ? GRAFO_VERSION : '1.2.0';
+const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const CAPS = { none: 'Nenhuma', arrow: 'Seta', triangle: 'Triângulo', diamond: 'Losango', diamondOpen: 'Losango vazado', circle: 'Círculo', one: 'Um (ER)', many: 'Muitos (ER)', oneMany: 'Um ou muitos', zeroMany: 'Zero ou muitos' };
 
 export class UI {
@@ -28,6 +31,7 @@ export class UI {
     this.cursors = new Map();
     this.renameId = null;
     this.pending = 0;
+    this.abort = new AbortController();
     this.buildTop();
     this.buildMenus();
     this.ed.on((info) => this.onEditor(info));
@@ -101,14 +105,15 @@ export class UI {
     d.shareBtn.onclick = () => this.shareDialog();
     d.zoomBtn.onclick = (e) => this.zoomMenu(e.currentTarget);
     d.themeBtn.onclick = () => this.app.toggleTheme();
+    const signal = this.abort.signal;
     d.fileName.addEventListener('change', () => {
       this.store.name = d.fileName.value.trim() || 'Sem título';
       document.title = `${this.store.name} · Grafo`;
-    });
+    }, { signal });
     d.fileName.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') d.fileName.blur();
       e.stopPropagation();
-    });
+    }, { signal });
     d.mainMenuBtn.onclick = (e) => this.openMenu(e.currentTarget, this.menuDefs()[0].items());
     d.minimap.addEventListener('pointerdown', (e) => {
       const r = d.minimap.getBoundingClientRect();
@@ -117,7 +122,7 @@ export class UI {
       d.minimap.setPointerCapture(e.pointerId);
       d.minimap.onpointermove = move;
       d.minimap.onpointerup = () => (d.minimap.onpointermove = null);
-    });
+    }, { signal });
     this.updateTop();
     this.updateTools();
   }
@@ -165,7 +170,8 @@ export class UI {
     };
     return [
       { name: 'Arquivo', items: () => [
-        { label: 'Novo arquivo', key: 'Ctrl+Alt+N', run: () => app.newFile() },
+        { label: 'Novo quadro…', key: 'Ctrl+Alt+N', run: () => this.galleryDialog() },
+        { label: 'Novo arquivo em branco', run: () => app.newFile() },
         { label: 'Abrir arquivo .grafo…', key: 'Ctrl+O', run: () => this.openFile() },
         { label: 'Arquivos recentes…', run: () => this.recentDialog() },
         '-',
@@ -184,18 +190,27 @@ export class UI {
         { label: 'Copiar', key: 'Ctrl+C', run: () => ed.copy(), disabled: !sel() },
         { label: 'Recortar', key: 'Ctrl+X', run: () => ed.copy(true), disabled: !sel() },
         { label: 'Colar', key: 'Ctrl+V', run: () => ed.clipboard && ed.paste(ed.clipboard), disabled: !ed.clipboard },
-        { label: 'Duplicar', key: 'Ctrl+D', run: () => ed.duplicate(), disabled: !sel() },
+        { label: 'Duplicar', key: 'Ctrl+D', run: () => ed.smartDuplicate(), disabled: !sel() },
         { label: 'Excluir', key: 'Delete', run: () => ed.remove(), disabled: !sel() },
         '-',
+        { label: 'Copiar propriedades', key: 'Ctrl+Alt+C', run: () => ed.copyProps(), disabled: !sel() },
+        { label: 'Colar propriedades', key: 'Ctrl+Alt+Shift+V', run: () => ed.pasteProps(), disabled: !sel() || !(ed.propClipboard || storage.get('props', null)) },
+        '-',
         { label: 'Selecionar tudo', key: 'Ctrl+A', run: () => ed.selectAll() },
+        { label: 'Selecionar próxima camada', key: 'Tab', run: () => ed.selectSibling(1) },
+        { label: 'Selecionar camada anterior', key: 'Shift+Tab', run: () => ed.selectSibling(-1) },
         { label: 'Selecionar mesma cor', run: () => this.selectSame('fill'), disabled: !sel() },
         { label: 'Selecionar mesmo tipo', run: () => this.selectSame('type'), disabled: !sel() },
+        '-',
+        { label: 'Ações rápidas…', key: 'Ctrl+K', run: () => this.commandPalette() },
       ] },
       { name: 'Exibir', items: () => [
         { label: 'Réguas', key: 'Shift+R', check: S.rulers, run: toggle('rulers') },
         { label: 'Grade de pixels', key: "Ctrl+'", check: S.grid, run: toggle('grid') },
         { label: 'Minimapa', key: 'Shift+M', check: S.minimap, run: toggle('minimap') },
         { label: 'Contornos', key: 'Ctrl+Shift+O', check: S.outlines, run: toggle('outlines') },
+        { label: 'Guias', key: 'Shift+G', check: S.guides, run: toggle('guides') },
+        { label: 'Remover guias da página', run: () => ed.clearGuides(), disabled: !ed.pageGuides().length },
         { label: 'Encaixe inteligente', check: S.snap, run: toggle('snap') },
         { label: 'Encaixar em pixels inteiros', check: S.pixelSnap, run: toggle('pixelSnap') },
         { label: 'Links de protótipo', check: !!ed.emitLinks, run: () => { ed.emitLinks = !ed.emitLinks; ed.invalidate(); } },
@@ -215,6 +230,8 @@ export class UI {
         { label: 'Desagrupar', key: 'Ctrl+Shift+G', run: () => ed.ungroup(), disabled: !sel() },
         { label: 'Criar frame da seleção', key: 'Ctrl+Alt+G', run: () => ed.frameSelection(), disabled: !sel() },
         { label: 'Adicionar auto layout', key: 'Shift+A', run: () => ed.toggleAutoLayout(), disabled: !sel() },
+        { label: 'Ajustar ao conteúdo', key: 'Ctrl+Alt+Shift+R', run: () => ed.fitToContent(), disabled: !ed.selection.some((n) => ['frame', 'component', 'section'].includes(n.type)) },
+        { label: 'Renomear…', key: 'F2', run: () => this.renameSelection(), disabled: !sel() },
         '-',
         { label: 'Criar componente', key: 'Ctrl+Alt+K', run: () => ed.makeComponent(), disabled: !sel() },
         { label: 'Desanexar instância', key: 'Ctrl+Alt+B', run: () => ed.selection.forEach((n) => ed.detachInstance(n.id)), disabled: !ed.selection.some((n) => n.type === 'instance') },
@@ -226,6 +243,8 @@ export class UI {
         '-',
         { label: 'Espelhar na horizontal', key: 'Shift+H', run: () => ed.flip('h'), disabled: !sel() },
         { label: 'Espelhar na vertical', key: 'Shift+V', run: () => ed.flip('v'), disabled: !sel() },
+        { label: 'Trocar preenchimento e contorno', key: 'Shift+X', run: () => ed.swapFillStroke(), disabled: !sel() },
+        { label: 'Travar/destravar proporção', run: () => this.toggleRatio(), disabled: !sel() },
         { label: 'Bloquear/desbloquear', key: 'Ctrl+Shift+L', run: () => this.toggleProp('locked'), disabled: !sel() },
         { label: 'Mostrar/ocultar', key: 'Ctrl+Shift+H', run: () => this.toggleProp('visible'), disabled: !sel() },
       ] },
@@ -243,11 +262,13 @@ export class UI {
         { label: 'Alinhar à base', key: 'Alt+S', run: () => ed.align('bottom') },
         { label: 'Distribuir na horizontal', key: 'Ctrl+Alt+H', run: () => ed.distribute('h') },
         { label: 'Distribuir na vertical', key: 'Ctrl+Alt+V', run: () => ed.distribute('v') },
+        { label: 'Organizar em grade', key: 'Ctrl+Alt+Shift+T', run: () => ed.tidy(), disabled: ed.sel.size < 2 },
         '-',
         { label: 'Layout automático (cima → baixo)', key: 'Ctrl+Shift+Y', run: () => ed.autoArrange(0) },
         { label: 'Layout automático (esquerda → direita)', run: () => ed.autoArrange(1) },
       ] },
       { name: 'Ajuda', items: () => [
+        { label: 'Ações rápidas…', key: 'Ctrl+K', run: () => this.commandPalette() },
         { label: 'Tutorial rápido', run: () => startTutorial() },
         { label: 'Atalhos de teclado', key: 'Ctrl+/', run: () => this.shortcutsDialog() },
         { label: 'Seu nome e cor…', run: () => this.shareDialog() },
@@ -324,8 +345,11 @@ export class UI {
       { label: 'Copiar', key: 'Ctrl+C', run: () => ed.copy() },
       { label: 'Recortar', key: 'Ctrl+X', run: () => ed.copy(true) },
       { label: 'Colar aqui', run: () => ed.clipboard && ed.paste(ed.clipboard, 0, 0, false, ed.mouse), disabled: !ed.clipboard },
-      { label: 'Duplicar', key: 'Ctrl+D', run: () => ed.duplicate() },
+      { label: 'Duplicar', key: 'Ctrl+D', run: () => ed.smartDuplicate() },
       { label: 'Excluir', key: 'Delete', run: () => ed.remove() },
+      '-',
+      { label: 'Copiar propriedades', key: 'Ctrl+Alt+C', run: () => ed.copyProps() },
+      { label: 'Colar propriedades', key: 'Ctrl+Alt+Shift+V', run: () => ed.pasteProps(), disabled: !(ed.propClipboard || storage.get('props', null)) },
       '-',
       { label: 'Trazer para frente', key: 'Ctrl+Shift+]', run: () => ed.arrange('front') },
       { label: 'Enviar para trás', key: 'Ctrl+Shift+[', run: () => ed.arrange('back') },
@@ -335,10 +359,17 @@ export class UI {
       { label: 'Criar frame da seleção', key: 'Ctrl+Alt+G', run: () => ed.frameSelection() },
       { label: 'Adicionar auto layout', key: 'Shift+A', run: () => ed.toggleAutoLayout() },
       { label: 'Criar componente', key: 'Ctrl+Alt+K', run: () => ed.makeComponent() },
+      { label: 'Organizar em grade', key: 'Ctrl+Alt+Shift+T', run: () => ed.tidy(), disabled: ed.sel.size < 2 },
+      '-',
+      { label: 'Espelhar na horizontal', key: 'Shift+H', run: () => ed.flip('h') },
+      { label: 'Espelhar na vertical', key: 'Shift+V', run: () => ed.flip('v') },
+      { label: 'Trocar preenchimento e contorno', key: 'Shift+X', run: () => ed.swapFillStroke() },
       '-',
       { label: 'Mostrar/ocultar', key: 'Ctrl+Shift+H', run: () => this.toggleProp('visible') },
       { label: 'Bloquear/desbloquear', key: 'Ctrl+Shift+L', run: () => this.toggleProp('locked') },
+      { label: 'Copiar como PNG', key: 'Ctrl+Shift+C', run: () => this.copyPNG() },
       { label: 'Copiar como SVG', run: () => this.copySVG() },
+      { label: 'Renomear…', key: 'F2', run: () => this.renameSelection() },
       { label: 'Exportar seleção…', run: () => this.exportDialog() },
     ] : [
       { label: 'Colar aqui', key: 'Ctrl+V', run: () => ed.clipboard && ed.paste(ed.clipboard, 0, 0, false, ed.mouse), disabled: !ed.clipboard },
@@ -347,6 +378,7 @@ export class UI {
       { label: 'Ajustar tudo', key: 'Shift+1', run: () => ed.zoomToFit() },
       { label: 'Layout automático do diagrama', key: 'Ctrl+Shift+Y', run: () => ed.autoArrange(0) },
       { label: 'Adicionar comentário', key: 'C', run: () => this.newComment({ x: ed.mouse.x, y: ed.mouse.y }) },
+      { label: 'Ações rápidas…', key: 'Ctrl+K', run: () => this.commandPalette() },
     ];
     this.openMenu(null, items, { x, y });
   }
@@ -386,6 +418,22 @@ export class UI {
     if (k === 'locked' && val) this.ed.select([]);
   }
 
+  toggleCollapseAll() {
+    const containers = this.ed.pageNodes().filter((x) => this.store.childrenOf(x.id).length && x.type !== 'instance');
+    if (containers.every((x) => this.collapsed.has(x.id))) for (const x of containers) this.collapsed.delete(x.id);
+    else for (const x of containers) this.collapsed.add(x.id);
+    this.leftTab = 'layers';
+    this.renderLeft();
+  }
+
+  toggleRatio() {
+    const sel = this.ed.selection;
+    if (!sel.length) return;
+    const on = !sel.every((n) => n.lockRatio);
+    this.ed.setProp({ lockRatio: on ? true : undefined });
+    this.toast(on ? 'Proporção travada' : 'Proporção destravada');
+  }
+
   selectSame(what) {
     const ref = this.ed.selection[0];
     if (!ref) return;
@@ -412,6 +460,17 @@ export class UI {
     const scroll = host.querySelector('.panel-body')?.scrollTop || 0;
     if (this.renameId && host.querySelector('.rename')) return;
     if (document.activeElement === this.dom.fileName) return;
+    const searching = this.layerSearch && document.activeElement === this.layerSearch ? [this.layerSearch.selectionStart, this.layerSearch.selectionEnd] : null;
+    this.renderLeftInner(host, scroll);
+    if (searching && this.layerSearch.isConnected) {
+      this.layerSearch.focus({ preventScroll: true });
+      try {
+        this.layerSearch.setSelectionRange(...searching);
+      } catch {}
+    }
+  }
+
+  renderLeftInner(host, scroll) {
     host.innerHTML = '';
     host.append(el('div', { class: 'file-head' }, this.dom.fileName, el('span', { class: 'tag', text: this.store.mode === 'server' ? 'Servidor' : 'Local' })));
     this.tabs(host, [['layers', 'Camadas', 'layers'], ['shapes', 'Formas', 'shapes']], this.leftTab, (t) => {
@@ -446,10 +505,69 @@ export class UI {
     pages.append(list);
     body.append(pages);
     const layers = el('div', { class: 'section', style: { borderBottom: '0' } });
-    layers.append(el('div', { class: 'section-title' }, 'Camadas'));
+    const containers = ed.pageNodes().filter((x) => store.childrenOf(x.id).length && x.type !== 'instance');
+    const allClosed = containers.length > 0 && containers.every((x) => this.collapsed.has(x.id));
+    layers.append(el('div', { class: 'section-title' }, 'Camadas', containers.length ? el('button', { class: 'btn small ghost', title: allClosed ? 'Expandir todas (Alt+L)' : 'Recolher todas (Alt+L)', onclick: () => this.toggleCollapseAll() }, icon(allClosed ? 'chevronRight' : 'chevronDown', 14)) : ''));
+    if (!this.layerSearch) {
+      this.layerSearch = el('input', { type: 'search', class: 'lib-search layer-search', placeholder: 'Buscar camadas', 'aria-label': 'Buscar camadas', spellcheck: false });
+      this.layerSearch.addEventListener('input', () => {
+        this.layerFilter = this.layerSearch.value;
+        this.renderLeft();
+      });
+      this.layerSearch.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Escape') {
+          this.layerSearch.value = '';
+          this.layerFilter = '';
+          this.renderLeft();
+          ed.overlay.focus();
+        }
+        if (e.key === 'Enter') {
+          const first = this.dom.leftPanel.querySelector('.layer');
+          if (first) ed.select([first.dataset.id]);
+        }
+      });
+    }
+    layers.append(el('div', { class: 'layer-search-wrap' }, icon('search', 13), this.layerSearch));
     const tree = el('div', { class: 'layers', role: 'tree' });
     const roots = store.childrenOf(null, ed.page).filter((n) => n.page === ed.page).reverse();
     if (!roots.length) tree.append(el('div', { class: 'empty', text: 'Página vazia. Escolha uma ferramenta na barra de cima ou arraste uma forma da aba Formas.' }));
+    const query = fold(this.layerFilter || '').trim();
+    if (query) {
+      const tokens = query.split(/\s+/);
+      const hits = ed.pageNodes().filter((n) => {
+        const name = fold(n.name || TYPE_NAME[n.type] || n.type);
+        return tokens.every((t) => name.includes(t));
+      });
+      const order = new Map(ed.drawOrder().map((n, i) => [n.id, i]));
+      hits.sort((a, b) => (order.get(b.id) ?? 0) - (order.get(a.id) ?? 0));
+      if (!hits.length) tree.append(el('div', { class: 'empty', text: 'Nenhuma camada com esse nome.' }));
+      for (const n of hits.slice(0, 400)) {
+        const path = store.ancestors(n.id).map((a) => a.name || TYPE_NAME[a.type]).reverse().join(' › ');
+        const row = el('div', { class: `layer ${n.type}` + (ed.sel.has(n.id) ? ' selected' : '') + (n.visible === false ? ' hidden' : ''), role: 'treeitem', dataset: { id: n.id }, style: { paddingLeft: '6px' } },
+          el('span', { class: 'kind' }, icon(TYPE_ICON[n.type] || 'rect', 14)),
+          el('span', { class: 'name' }, n.name || TYPE_NAME[n.type] || n.type, path ? el('small', { class: 'layer-path', text: path }) : ''));
+        row.addEventListener('click', (e) => {
+          if (e.shiftKey || e.ctrlKey || e.metaKey) ed.toggle(n.id);
+          else {
+            ed.select([n.id]);
+            ed.zoomTo(nodeBounds(n, store), true, Math.max(ed.zoom, 1));
+          }
+        });
+        row.addEventListener('pointerenter', () => {
+          ed.hover = n.id;
+          ed.invalidate();
+        });
+        tree.append(row);
+      }
+      tree.addEventListener('pointerleave', () => {
+        ed.hover = null;
+        ed.invalidate();
+      });
+      layers.append(tree);
+      body.append(layers);
+      return;
+    }
     const walk = (n, depth) => {
       const kids = n.type === 'instance' ? [] : store.childrenOf(n.id).reverse();
       const open = !this.collapsed.has(n.id);
@@ -822,9 +940,24 @@ export class UI {
       geo.append(el('div', { class: 'grid2' },
         this.num('X', b.x, (v) => (multi ? ed.commit(() => sel.forEach((s) => ed.translate(s, v - b.x, 0))) : ed.commit(() => ed.translate(n, v - n.x, 0))), { key: 'x' }),
         this.num('Y', b.y, (v) => (multi ? ed.commit(() => sel.forEach((s) => ed.translate(s, 0, v - b.y))) : ed.commit(() => ed.translate(n, 0, v - n.y))), { key: 'y' })));
-      geo.append(el('div', { class: 'grid2' },
-        this.num('L', multi ? same('w') : n.w, (v) => ed.setProp((s) => ({ w: Math.max(1, v), ...(s.type === 'text' ? { autoSize: 'height' } : {}), ...(s.type === 'path' ? { points: s.points.map((p) => scaleXY(p, Math.max(1, v) / s.w, 1)) } : {}) })), { min: 1, key: 'w', title: 'Largura' }),
-        this.num('A', multi ? same('h') : n.h, (v) => ed.setProp((s) => ({ h: Math.max(1, v), ...(s.type === 'text' ? { autoSize: 'none' } : {}), ...(s.type === 'path' ? { points: s.points.map((p) => scaleXY(p, 1, Math.max(1, v) / s.h)) } : {}) })), { min: 1, key: 'h', title: 'Altura' })));
+      const ratioOn = sel.every((s) => s.lockRatio);
+      const sizePatch = (s, w, h) => {
+        const sx = w / Math.max(0.01, s.w);
+        const sy = h / Math.max(0.01, s.h);
+        return { w, h, ...(s.type === 'path' ? { points: s.points.map((p) => scaleXY(p, sx, sy)) } : {}) };
+      };
+      geo.append(el('div', { class: 'grid-ratio' },
+        this.num('L', multi ? same('w') : n.w, (v) => ed.setProp((s) => {
+          const w = Math.max(1, v);
+          const h = s.lockRatio ? Math.max(1, round((w * s.h) / Math.max(0.01, s.w), 100)) : s.h;
+          return { ...sizePatch(s, w, h), ...(s.type === 'text' ? { autoSize: s.lockRatio ? 'none' : 'height' } : {}) };
+        }), { min: 1, key: 'w', title: 'Largura' }),
+        el('button', { class: 'icon-btn ratio-btn' + (ratioOn ? ' active' : ''), title: ratioOn ? 'Destravar proporção' : 'Travar proporção', 'aria-label': 'Travar proporção', 'aria-pressed': String(ratioOn), onclick: () => this.toggleRatio() }, icon('ratio', 14)),
+        this.num('A', multi ? same('h') : n.h, (v) => ed.setProp((s) => {
+          const h = Math.max(1, v);
+          const w = s.lockRatio ? Math.max(1, round((h * s.w) / Math.max(0.01, s.h), 100)) : s.w;
+          return { ...sizePatch(s, w, h), ...(s.type === 'text' ? { autoSize: 'none' } : {}) };
+        }), { min: 1, key: 'h', title: 'Altura' })));
       const row = el('div', { class: 'grid2' }, this.num('°', same('rotation') ?? 0, (v) => set({ rotation: ((v % 360) + 540) % 360 - 180 }), { key: 'rot', title: 'Rotação' }));
       if (['rect', 'frame', 'component', 'image', 'instance', 'section', 'sticky'].includes(n.type) || (n.type === 'shape' && n.shape === 'rect')) row.append(this.num('R', same('radius') ?? 0, (v) => set({ radius: Math.max(0, v) }), { min: 0, key: 'radius', title: 'Raio do canto' }));
       geo.append(row);
@@ -851,6 +984,16 @@ export class UI {
       s.append(this.select(Object.entries(SHAPES).filter(([, d]) => d.lib === lib).map(([id, d]) => [id, d.name]), n.shape, (v) => set({ shape: v }), { key: 'shape' }));
       body.append(s);
     }
+    if (n.branch && !multi) {
+      const s = el('div', { class: 'section' });
+      s.append(el('div', { class: 'section-title' }, 'Aula'));
+      s.append(el('div', { class: 'grid2' },
+        el('button', { class: 'btn small', title: 'Adicionar ramificação (Tab)', onclick: () => ed.addBranch(false) }, icon('plus', 13), 'Ramificação'),
+        el('button', { class: 'btn small', title: 'Adicionar ideia no mesmo nível (Enter)', onclick: () => ed.addBranch(true) }, icon('plus', 13), 'Irmã')));
+      s.append(this.select([['down', 'Da raiz para baixo'], ['right', 'Ramificações para os lados'], ['up', 'História ao contrário']], ed.aulaDir(), (v) => ed.setAulaDir(v), { key: 'auladir' }));
+      s.append(el('div', { class: 'row', style: { marginTop: '6px' } }, el('button', { class: 'btn small', onclick: () => ed.relayoutTree() }, icon('tree', 13), 'Reorganizar a árvore'), el('span', { class: 'hint', text: 'Tab: ramificação · Enter: irmã' })));
+      body.append(s);
+    }
     if (n.type === 'boolean' && !multi) {
       const s = el('div', { class: 'section' });
       s.append(el('div', { class: 'section-title' }, 'Operação booleana'));
@@ -873,6 +1016,7 @@ export class UI {
       const s = el('div', { class: 'section' });
       s.append(el('div', { class: 'section-title' }, 'Imagem'));
       s.append(el('div', { class: 'grid2' }, this.select([['fill', 'Preencher'], ['fit', 'Ajustar'], ['stretch', 'Esticar']], n.fit || 'fill', (v) => set({ fit: v }), { key: 'fit' }), el('button', { class: 'btn small', onclick: () => this.replaceImage(n.id) }, 'Trocar imagem')));
+      s.append(el('div', { class: 'row' }, el('button', { class: 'btn small', onclick: () => ed.originalSize(n.id) }, 'Tamanho original')));
       body.append(s);
     }
     body.append(this.exportSection(sel));
@@ -907,7 +1051,7 @@ export class UI {
     body.append(tstyles);
     const v = el('div', { class: 'section' });
     v.append(el('div', { class: 'section-title' }, 'Exibição'));
-    for (const [k, t] of [['rulers', 'Réguas'], ['grid', 'Grade de pixels (zoom ≥ 400%)'], ['minimap', 'Minimapa'], ['snap', 'Encaixe inteligente'], ['pixelSnap', 'Encaixar em pixels inteiros'], ['outlines', 'Contornos']]) {
+    for (const [k, t] of [['rulers', 'Réguas'], ['guides', 'Guias (arraste da régua)'], ['grid', 'Grade de pixels (zoom ≥ 400%)'], ['minimap', 'Minimapa'], ['snap', 'Encaixe inteligente'], ['pixelSnap', 'Encaixar em pixels inteiros'], ['outlines', 'Contornos']]) {
       v.append(el('div', { class: 'row' }, el('label', { class: 'chk' }, checkbox(!!ed.settings[k], (val) => { ed.settings[k] = val; ed.saveSettings(); }), t)));
     }
     body.append(v);
@@ -1010,6 +1154,11 @@ export class UI {
     align.append(el('button', { class: 'icon-btn' + (n.fontStyle === 'italic' ? ' active' : ''), title: 'Itálico', style: { fontStyle: 'italic', fontWeight: 700, width: '26px' }, onclick: () => set({ fontStyle: n.fontStyle === 'italic' ? 'normal' : 'italic' }) }, 'I'));
     align.append(el('button', { class: 'icon-btn' + (n.textDecoration === 'underline' ? ' active' : ''), title: 'Sublinhado', style: { textDecoration: 'underline', fontWeight: 700, width: '26px' }, onclick: () => set({ textDecoration: n.textDecoration === 'underline' ? 'none' : 'underline' }) }, 'S'));
     s.append(align);
+    const cases = el('div', { class: 'icon-row' });
+    for (const [mode, label, title] of [['none', '–', 'Como foi digitado'], ['upper', 'AA', 'MAIÚSCULAS'], ['lower', 'aa', 'minúsculas'], ['title', 'Aa', 'Primeira Letra Maiúscula']]) {
+      cases.append(el('button', { class: 'icon-btn' + ((n.textCase || 'none') === mode ? ' active' : ''), title, 'aria-label': title, style: { fontWeight: 700, width: '30px' }, onclick: () => set({ textCase: mode === 'none' ? undefined : mode }) }, label));
+    }
+    s.append(cases);
     if (n.type !== 'text') {
       s.append(el('div', { class: 'hint', text: 'Cor do texto', style: { marginTop: '8px' } }));
       s.append(this.color(n.textColor || '#2B1D17', 1, (p) => p.color && set({ textColor: p.color }), 'tc'));
@@ -1415,14 +1564,20 @@ export class UI {
     sb.replaceChildren(...html);
   }
 
+  destroy() {
+    this.closeMenu();
+    this.abort.abort();
+  }
+
   bindKeys() {
-    addEventListener('keydown', (e) => this.onKey(e));
+    const signal = this.abort.signal;
+    addEventListener('keydown', (e) => this.onKey(e), { signal });
     addEventListener('keyup', (e) => {
       if (e.code === 'Space') {
         this.ed.spaceDown = false;
         this.ed.overlay.style.cursor = this.ed.tool === 'hand' ? 'grab' : 'default';
       }
-    });
+    }, { signal });
     addEventListener('copy', (e) => {
       if (this.isTyping(e)) return;
       const t = this.ed.copy();
@@ -1430,7 +1585,7 @@ export class UI {
         e.clipboardData.setData('text/plain', t);
         e.preventDefault();
       }
-    });
+    }, { signal });
     addEventListener('cut', (e) => {
       if (this.isTyping(e)) return;
       const t = this.ed.copy(true);
@@ -1438,8 +1593,8 @@ export class UI {
         e.clipboardData.setData('text/plain', t);
         e.preventDefault();
       }
-    });
-    addEventListener('paste', (e) => this.onPaste(e));
+    }, { signal });
+    addEventListener('paste', (e) => this.onPaste(e), { signal });
   }
 
   isTyping(e) {
@@ -1486,7 +1641,7 @@ export class UI {
 
   onKey(e) {
     if (this.isTyping(e)) return;
-    if (document.querySelector('.modal-back') || document.querySelector('.present') || document.querySelector('.tour')) return;
+    if (document.querySelector('.modal-back') || document.querySelector('.palette-back') || document.querySelector('.present') || document.querySelector('.tour')) return;
     const ed = this.ed;
     const ctrl = e.ctrlKey || e.metaKey;
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -1501,9 +1656,15 @@ export class UI {
       return;
     }
     if (ctrl) {
+      if (e.altKey && e.code === 'KeyC' && !e.shiftKey) return run(() => ed.copyProps());
+      if (e.altKey && e.shiftKey && e.code === 'KeyV') return run(() => ed.pasteProps());
+      if (e.altKey && e.shiftKey && e.code === 'KeyT') return run(() => ed.tidy());
+      if (e.altKey && e.shiftKey && e.code === 'KeyR') return run(() => ed.fitToContent());
+      if (e.shiftKey && !e.altKey && e.code === 'KeyC') return run(() => this.copyPNG());
+      if ((e.code === 'KeyK' || e.code === 'KeyP') && !e.altKey && !e.shiftKey) return run(() => this.commandPalette());
       if (k === 'z' && !e.shiftKey) return run(() => this.store.undo.undo());
       if ((k === 'z' && e.shiftKey) || k === 'y') return run(() => this.store.undo.redo());
-      if (k === 'd') return run(() => ed.duplicate());
+      if (k === 'd') return run(() => ed.smartDuplicate());
       if (k === 'a') return run(() => ed.selectAll());
       if (k === 'g' && e.altKey) return run(() => ed.frameSelection());
       if (k === 'g' && e.shiftKey) return run(() => ed.ungroup());
@@ -1516,7 +1677,7 @@ export class UI {
       if (k === 'o' && e.shiftKey) return run(() => { ed.settings.outlines = !ed.settings.outlines; ed.saveSettings(); });
       if (k === 'o') return run(() => this.openFile());
       if (k === 'e' && e.shiftKey) return run(() => this.exportDialog());
-      if (k === 'n' && e.altKey) return run(() => this.app.newFile());
+      if (k === 'n' && e.altKey) return run(() => this.galleryDialog());
       if (k === 'h' && e.shiftKey) return run(() => this.toggleProp('visible'));
       if (k === 'l' && e.shiftKey) return run(() => this.toggleProp('locked'));
       if (k === 'h' && e.altKey) return run(() => ed.distribute('h'));
@@ -1538,6 +1699,7 @@ export class UI {
       const map = { a: 'left', d: 'right', w: 'top', s: 'bottom', h: 'centerH', v: 'centerV' };
       if (map[k]) return run(() => ed.align(map[k]));
       if (k === 't') return run(() => this.app.toggleTheme());
+      if (e.code === 'KeyL' && !e.shiftKey) return run(() => this.toggleCollapseAll());
       return;
     }
     if (e.key === 'Escape') {
@@ -1554,6 +1716,7 @@ export class UI {
     if (e.key === 'Enter') {
       if (ed.pen) return run(() => ed.finishPen(false));
       const n = ed.selection[0];
+      if (n && n.branch && ed.sel.size === 1 && !e.shiftKey) return run(() => ed.addBranch(true));
       if (n && (n.type === 'group' || isContainer(n)) && n.type !== 'shape') {
         const kids = this.store.childrenOf(n.id);
         if (kids.length) {
@@ -1565,6 +1728,10 @@ export class UI {
       return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') return run(() => ed.remove());
+    const onCanvas = document.activeElement === ed.overlay || document.activeElement === document.body || !document.activeElement;
+    if (e.key === 'Tab' && onCanvas && !e.shiftKey && ed.sel.size === 1 && ed.selection[0].branch) return run(() => ed.addBranch(false));
+    if (e.key === 'Tab' && onCanvas) return run(() => ed.selectSibling(e.shiftKey ? -1 : 1));
+    if (e.key === 'F2') return run(() => this.renameSelection());
     if (e.key.startsWith('Arrow')) {
       const d = e.shiftKey ? 10 : 1;
       const v = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
@@ -1584,10 +1751,15 @@ export class UI {
       if (k === '*') return run(() => ed.setTool('star'));
       if (k === 'r') return run(() => { ed.settings.rulers = !ed.settings.rulers; ed.saveSettings(); });
       if (k === 'm') return run(() => { ed.settings.minimap = !ed.settings.minimap; ed.saveSettings(); });
-      if (k === 'c') return run(() => this.rightTab = 'comments', this.renderRight());
+      if (k === 'x') return run(() => ed.swapFillStroke());
+      if (k === 'g') return run(() => { ed.settings.guides = !ed.settings.guides; ed.saveSettings(); });
+      if (k === 'c') return run(() => {
+        this.rightTab = 'comments';
+        this.renderRight();
+      });
       return;
     }
-    const tools = { v: 'select', k: 'scale', f: 'frame', r: 'rect', o: 'ellipse', l: 'line', p: 'pen', t: 'text', s: 'sticky', x: 'connector', h: 'hand', c: 'comment', '*': 'star' };
+    const tools = { v: 'select', k: 'scale', f: 'frame', r: 'rect', o: 'ellipse', l: 'line', p: 'pen', t: 'text', s: 'sticky', x: 'connector', h: 'hand', c: 'comment', i: 'eyedropper', '*': 'star' };
     if (tools[k]) return run(() => ed.setTool(tools[k]));
     if (k === '+' || k === '=') return run(() => ed.zoomStep(1));
     if (k === '-') return run(() => ed.zoomStep(-1));
@@ -1731,6 +1903,63 @@ export class UI {
     } }]);
   }
 
+  async copyPNG() {
+    const sel = this.ed.selection;
+    if (!sel.length) return;
+    try {
+      const { svg, width, height } = toSVG(this.store, sel, {});
+      const canvas = await svgToCanvas(svg, width, height, 2);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob || !navigator.clipboard || typeof ClipboardItem === 'undefined') throw new Error('sem suporte');
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      this.toast('PNG copiado');
+    } catch {
+      this.toast('Não foi possível copiar a imagem; use Exportar');
+    }
+  }
+
+  renameSelection() {
+    const sel = this.ed.selection;
+    if (!sel.length) return;
+    if (sel.length === 1) {
+      this.leftTab = 'layers';
+      if (this.layerSearch) {
+        this.layerSearch.value = '';
+        this.layerFilter = '';
+      }
+      for (const a of this.store.ancestors(sel[0].id)) this.collapsed.delete(a.id);
+      this.renderLeft();
+      const row = this.dom.leftPanel.querySelector(`.layer[data-id="${CSS.escape(sel[0].id)}"]`);
+      const span = row && row.querySelector('.name');
+      if (span) {
+        row.scrollIntoView({ block: 'nearest' });
+        this.renameLayer(sel[0].id, span);
+      }
+      return;
+    }
+    const ordered = [...sel].sort((a, b) => (Math.abs(a.y - b.y) > Math.min(a.h, b.h) / 2 ? a.y - b.y : a.x - b.x));
+    const input = el('input', { type: 'text', value: (ordered[0].name || TYPE_NAME[ordered[0].type] || '').replace(/\s*\d+$/, '') + ' $n' });
+    const start = el('input', { type: 'text', value: '1', inputmode: 'numeric' });
+    const apply = () => {
+      const tpl = input.value.trim();
+      if (!tpl) return;
+      const first = parseInt(start.value, 10);
+      const base = Number.isFinite(first) ? first : 1;
+      this.ed.commit(() => ordered.forEach((n, i) => this.store.update(n.id, { name: tpl.replace(/\$n/g, String(base + i)).replace(/\$&/g, n.name || '').slice(0, 120) })));
+    };
+    for (const f of [input, start]) f.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        apply();
+        m.close();
+      }
+    });
+    const m = this.modal(`Renomear ${ordered.length} camadas`, el('div', {},
+      el('label', {}, el('span', { text: 'Nome' }), input),
+      el('label', {}, el('span', { text: 'Começar a numeração em' }), start),
+      el('p', { class: 'hint', text: '$n vira o número de cada camada, na ordem de leitura (de cima para baixo, da esquerda para a direita). $& repete o nome atual.' })), [{ label: 'Cancelar' }, { label: 'Renomear', primary: true, run: apply }]);
+  }
+
   async copySVG() {
     const { svg } = toSVG(this.store, this.ed.selection, {});
     try {
@@ -1805,13 +2034,271 @@ export class UI {
     } }]);
   }
 
+  paletteCommands() {
+    const ed = this.ed;
+    const out = [];
+    for (const def of this.menuDefs()) {
+      for (const it of def.items()) {
+        if (it === '-' || it.header || it.disabled || !it.run || /^Ações rápidas/.test(it.label)) continue;
+        out.push({ group: def.name, label: it.label.replace(/…$/, ''), key: it.key, run: it.run, check: it.check });
+      }
+    }
+    for (const t of TOOLS) if (!t.sep) out.push({ group: 'Ferramenta', label: t.name, key: t.key, run: () => ed.setTool(t.id) });
+    for (const p of this.store.pageList()) if (p.id !== ed.page) out.push({ group: 'Página', label: `Ir para ${p.name}`, run: () => ed.setPage(p.id) });
+    out.push({ group: 'Novo quadro', label: 'Galeria de modelos', run: () => this.galleryDialog() });
+    for (const t of AULA_STARTS) out.push({ group: 'Aula', label: t.name, hint: t.desc, run: () => this.app.newFromTemplate(t) });
+    const catName = new Map(TEMPLATE_CATEGORIES.map((c) => [c.id, c.name]));
+    for (const t of TEMPLATES) out.push({ group: 'Modelo', label: t.name, hint: catName.get(t.cat), run: () => this.app.newFromTemplate(t) });
+    for (const t of PATTERN_TEMPLATES) {
+      out.push({ group: 'Padrão', label: t.name, hint: t.kind, run: () => this.app.newFromTemplate(t) });
+      out.push({ group: 'Padrão (aula)', label: t.name, hint: t.kind, run: () => this.app.newFromTemplate(t, true) });
+    }
+    out.push({ group: 'Página', label: 'Nova página', run: () => ed.setPage(this.store.addPage()) });
+    const libs = new Map(LIBRARIES.map((l) => [l.id, l.name]));
+    for (const [id, d] of Object.entries(SHAPES)) {
+      out.push({ group: 'Inserir forma', label: `${d.name}`, hint: libs.get(d.lib) || '', run: () => {
+        const c = ed.viewportCenter();
+        ed.insertShape(id, c.x, c.y);
+      } });
+    }
+    for (const n of this.store.nodes.values()) {
+      if (n.type !== 'component') continue;
+      out.push({ group: 'Inserir instância', label: n.name || 'Componente', run: () => {
+        const c = ed.viewportCenter();
+        ed.insertInstance(n.id, c.x, c.y);
+      } });
+    }
+    for (const n of ed.pageNodes()) {
+      if (n.type === 'connector' || !n.name) continue;
+      out.push({ group: 'Camada', label: n.name, hint: TYPE_NAME[n.type] || '', layer: true, run: () => {
+        ed.select([n.id]);
+        ed.zoomTo(nodeBounds(n, this.store), true, Math.max(ed.zoom, 1));
+      } });
+    }
+    return out;
+  }
+
+  galleryDialog(start = 'start') {
+    if (document.querySelector('.gallery-back')) return;
+    this.closeMenu();
+    const back = el('div', { class: 'gallery-back modal-back' });
+    const box = el('div', { class: 'gallery', role: 'dialog', 'aria-label': 'Novo quadro' });
+    const nav = el('nav', { class: 'gallery-nav' });
+    const main = el('div', { class: 'gallery-main' });
+    const search = el('input', { type: 'search', class: 'lib-search gallery-search', placeholder: `Buscar entre ${TEMPLATES.length} modelos e ${PATTERN_TEMPLATES.length} padrões`, 'aria-label': 'Buscar modelos', spellcheck: false });
+    const grid = el('div', { class: 'gallery-grid' });
+    const heading = el('div', { class: 'gallery-heading' });
+    const close = () => {
+      back.remove();
+      removeEventListener('keydown', esc, true);
+      this.ed.overlay.focus({ preventScroll: true });
+    };
+    const esc = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close();
+      }
+    };
+    addEventListener('keydown', esc, true);
+    const open = (t, lesson = false) => {
+      close();
+      if (t === 'blank') this.app.newFile();
+      else this.app.newFromTemplate(t, lesson);
+    };
+    const preview = (fn) => {
+      const holder = el('div', { class: 'gallery-thumb' });
+      try {
+        holder.innerHTML = boardPreview(buildBoard(fn));
+      } catch {}
+      return holder;
+    };
+    const card = (t, fn, actions) => {
+      const c = el('div', { class: 'gallery-card', tabindex: '0', role: 'button', 'aria-label': t.name, dataset: { id: t.id } }, preview(fn), el('div', { class: 'gallery-info' }, el('b', { text: t.name }), el('span', { text: t.desc })));
+      if (actions) c.append(actions);
+      else {
+        c.addEventListener('click', () => open(t));
+        c.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') open(t);
+        });
+      }
+      return c;
+    };
+    const patternCard = (t) => {
+      const acts = el('div', { class: 'gallery-actions' },
+        el('button', { class: 'btn small primary', onclick: () => open(t) }, 'Diagrama'),
+        el('button', { class: 'btn small', onclick: () => open(t, true) }, 'Aula'));
+      return card(t, t.build, acts);
+    };
+    let current = start;
+    const show = (cat) => {
+      current = cat;
+      for (const b of nav.querySelectorAll('button')) b.classList.toggle('active', b.dataset.cat === cat);
+      grid.replaceChildren();
+      const q = fold(search.value).trim();
+      if (q) {
+        const tokens = q.split(/\s+/);
+        const hit = (t) => tokens.every((k) => fold(`${t.name} ${t.desc} ${t.kind || ''}`).includes(k));
+        const list = [...AULA_STARTS.filter(hit).map((t) => card(t, aulaStart(t.dir))), ...TEMPLATES.filter(hit).map((t) => card(t, t.build)), ...PATTERN_TEMPLATES.filter(hit).map(patternCard)];
+        heading.replaceChildren(el('b', { text: `${list.length} resultados` }));
+        if (!list.length) grid.append(el('div', { class: 'empty', text: 'Nenhum modelo com esse nome.' }));
+        grid.append(...list.slice(0, 80));
+        return;
+      }
+      if (cat === 'start') {
+        heading.replaceChildren(el('b', { text: 'Começar' }), el('span', { text: 'Um quadro em branco ou uma aula: comece por uma raiz e vá criando ramificações.' }));
+        const blank = el('div', { class: 'gallery-card blank', tabindex: '0', role: 'button', 'aria-label': 'Em branco', dataset: { id: 'blank' } }, el('div', { class: 'gallery-thumb' }, icon('plus', 28)), el('div', { class: 'gallery-info' }, el('b', { text: 'Em branco' }), el('span', { text: 'Uma página vazia para desenhar do seu jeito.' })));
+        blank.addEventListener('click', () => open('blank'));
+        blank.addEventListener('keydown', (e) => e.key === 'Enter' && open('blank'));
+        grid.append(blank, ...AULA_STARTS.map((t) => card(t, aulaStart(t.dir))));
+        return;
+      }
+      if (cat === 'patterns') {
+        heading.replaceChildren(el('b', { text: `Padrões de projeto · ${PATTERN_TEMPLATES.length}` }), el('span', { text: 'Cada padrão abre como diagrama de classes ou como aula, com problema, solução, participantes e exemplo.' }));
+        grid.append(...PATTERN_TEMPLATES.map(patternCard));
+        return;
+      }
+      const c = TEMPLATE_CATEGORIES.find((x) => x.id === cat);
+      const list = TEMPLATES.filter((t) => t.cat === cat);
+      heading.replaceChildren(el('b', { text: `${c.name} · ${list.length}` }), el('span', { text: 'Escolha um modelo e o quadro abre montado, pronto para editar.' }));
+      grid.append(...list.map((t) => card(t, t.build)));
+    };
+    const navBtn = (cat, label, ic, count) => {
+      const b = el('button', { class: 'gallery-nav-btn', dataset: { cat }, onclick: () => {
+        search.value = '';
+        show(cat);
+      } }, icon(ic, 15), el('span', { text: label }), count !== undefined ? el('small', { text: String(count) }) : '');
+      nav.append(b);
+    };
+    nav.append(el('div', { class: 'menu-label', text: 'Começar' }));
+    navBtn('start', 'Em branco e aula', 'plus');
+    nav.append(el('div', { class: 'menu-label', text: `Modelos · ${TEMPLATES.length}` }));
+    for (const c of TEMPLATE_CATEGORIES) navBtn(c.id, c.name, c.icon, TEMPLATES.filter((t) => t.cat === c.id).length);
+    nav.append(el('div', { class: 'menu-label', text: 'Padrões' }));
+    navBtn('patterns', 'Padrões de projeto', 'component', PATTERN_TEMPLATES.length);
+    search.addEventListener('input', () => show(current));
+    search.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') close();
+      if (e.key === 'Enter') {
+        const first = grid.querySelector('.gallery-card');
+        if (first) first.querySelector('.btn.primary') ? first.querySelector('.btn.primary').click() : first.click();
+      }
+    });
+    main.append(el('header', { class: 'gallery-top' }, el('div', {}, el('b', { text: 'Novo quadro', class: 'gallery-title' })), search, el('button', { class: 'btn icon ghost', title: 'Fechar', 'aria-label': 'Fechar', onclick: close }, icon('close', 16))), heading, grid);
+    box.append(nav, main);
+    back.append(box);
+    back.addEventListener('pointerdown', (e) => {
+      if (e.target === back) close();
+    });
+    document.body.append(back);
+    show(start);
+    setTimeout(() => search.focus(), 30);
+    return { close };
+  }
+
+  commandPalette() {
+    if (document.querySelector('.palette-back')) return;
+    this.closeMenu();
+    const all = this.paletteCommands();
+    const recent = storage.get('recentCommands', []);
+    const back = el('div', { class: 'palette-back' });
+    const input = el('input', { type: 'text', class: 'palette-input', placeholder: 'Buscar comandos, ferramentas, formas e camadas', 'aria-label': 'Ações rápidas', spellcheck: false, autocomplete: 'off' });
+    const list = el('div', { class: 'palette-list', role: 'listbox' });
+    const box = el('div', { class: 'palette', role: 'dialog', 'aria-label': 'Ações rápidas' }, el('div', { class: 'palette-head' }, icon('search', 16), input, el('kbd', { text: 'Esc' })), list);
+    back.append(box);
+    let items = [];
+    let active = 0;
+    const close = () => {
+      back.remove();
+      this.ed.overlay.focus({ preventScroll: true });
+    };
+    const runItem = (it) => {
+      if (!it) return;
+      close();
+      const id = it.group + '›' + it.label;
+      storage.set('recentCommands', [id, ...recent.filter((r) => r !== id)].slice(0, 6));
+      it.run();
+    };
+    const paint = () => {
+      list.replaceChildren();
+      if (!items.length) list.append(el('div', { class: 'palette-empty', text: 'Nada encontrado' }));
+      items.forEach((it, i) => {
+        const row = el('button', { class: 'palette-item' + (i === active ? ' active' : ''), role: 'option', 'aria-selected': String(i === active), onclick: () => runItem(it) },
+          el('span', { class: 'palette-group', text: it.group }),
+          el('span', { class: 'palette-label' }, it.check !== undefined ? (it.check ? '✓ ' : '') : '', it.label, it.hint ? el('small', { text: it.hint }) : ''),
+          it.key ? el('kbd', { text: it.key }) : '');
+        row.addEventListener('pointermove', () => {
+          if (active !== i) {
+            active = i;
+            for (const [j, r] of [...list.children].entries()) r.classList.toggle('active', j === i);
+          }
+        });
+        list.append(row);
+      });
+      const cur = list.children[active];
+      if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+    };
+    const filter = () => {
+      const q = fold(input.value).trim();
+      active = 0;
+      if (!q) {
+        const rec = recent.map((id) => all.find((it) => it.group + '›' + it.label === id)).filter(Boolean);
+        const rest = all.filter((it) => !it.layer && it.group !== 'Inserir forma' && !rec.includes(it));
+        items = [...rec, ...rest].slice(0, 60);
+        return paint();
+      }
+      const tokens = q.split(/\s+/);
+      const scored = [];
+      for (const it of all) {
+        const label = fold(it.label);
+        const hay = label + ' ' + fold(it.group) + ' ' + fold(it.hint || '') + ' ' + fold(it.key || '');
+        if (!tokens.every((t) => hay.includes(t))) continue;
+        let score = 0;
+        if (label.startsWith(q)) score += 100;
+        else if (label.split(/[\s/(),.-]+/).some((w) => w.startsWith(tokens[0]))) score += 50;
+        if (tokens.every((t) => label.includes(t))) score += 25;
+        if (it.layer) score -= 30;
+        if (it.group === 'Inserir forma') score -= 10;
+        score -= label.length / 100;
+        scored.push([score, it]);
+      }
+      scored.sort((a, b) => b[0] - a[0]);
+      items = scored.slice(0, 60).map((x) => x[1]);
+      paint();
+    };
+    input.addEventListener('input', filter);
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!items.length) return;
+        active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        paint();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        runItem(items[active]);
+      }
+    });
+    back.addEventListener('pointerdown', (e) => {
+      if (e.target === back) close();
+    });
+    document.body.append(back);
+    filter();
+    input.focus();
+    return { close, input };
+  }
+
   shortcutsDialog() {
     const rows = [
-      ['Mover / Escala', 'V / K'], ['Frame / Seção', 'F / Shift+S'], ['Retângulo / Elipse', 'R / O'], ['Linha / Seta', 'L / Shift+L'], ['Polígono / Estrela', 'Shift+Y / *'], ['Caneta / Lápis', 'P / Shift+P'], ['Texto', 'T'], ['Nota adesiva', 'S'], ['Conector', 'X'], ['Mão', 'H ou Espaço'], ['Comentário', 'C'], ['Imagem', 'Ctrl+Shift+K'],
+      ['Mover / Escala', 'V / K'], ['Conta-gotas', 'I'], ['Frame / Seção', 'F / Shift+S'], ['Retângulo / Elipse', 'R / O'], ['Linha / Seta', 'L / Shift+L'], ['Polígono / Estrela', 'Shift+Y / *'], ['Caneta / Lápis', 'P / Shift+P'], ['Texto', 'T'], ['Nota adesiva', 'S'], ['Conector', 'X'], ['Mão', 'H ou Espaço'], ['Comentário', 'C'], ['Imagem', 'Ctrl+Shift+K'],
       ['Desfazer / Refazer', 'Ctrl+Z / Ctrl+Shift+Z'], ['Copiar / Recortar / Colar', 'Ctrl+C / X / V'], ['Colar no lugar', 'Ctrl+Shift+V'], ['Duplicar', 'Ctrl+D (ou Alt+arrastar)'], ['Excluir', 'Delete'], ['Selecionar tudo', 'Ctrl+A'], ['Selecionar dentro', 'Enter / Ctrl+clique'], ['Selecionar o pai', 'Esc'],
       ['Agrupar / Desagrupar', 'Ctrl+G / Ctrl+Shift+G'], ['Frame da seleção', 'Ctrl+Alt+G'], ['Auto layout', 'Shift+A'], ['Criar componente', 'Ctrl+Alt+K'], ['Desanexar instância', 'Ctrl+Alt+B'],
       ['Trazer para frente / Enviar para trás', 'Ctrl+Shift+] / ['], ['Avançar / Recuar', 'Ctrl+] / ['], ['Alinhar (esq., centro, dir.)', 'Alt+A / Alt+H / Alt+D'], ['Alinhar (topo, meio, base)', 'Alt+W / Alt+V / Alt+S'], ['Distribuir', 'Ctrl+Alt+H / V'], ['Espelhar', 'Shift+H / Shift+V'], ['Mover 1 px / 10 px', 'Setas / Shift+Setas'], ['Opacidade 10%–100%', '1 … 0'],
       ['Mostrar/ocultar', 'Ctrl+Shift+H'], ['Bloquear', 'Ctrl+Shift+L'], ['Layout automático do diagrama', 'Ctrl+Shift+Y'],
+      ['Ações rápidas', 'Ctrl+K ou Ctrl+P'], ['Medir distâncias', 'Alt sobre outro objeto'], ['Copiar / colar propriedades', 'Ctrl+Alt+C / Ctrl+Alt+Shift+V'], ['Organizar em grade', 'Ctrl+Alt+Shift+T'], ['Próxima / anterior camada', 'Tab / Shift+Tab'], ['Trocar preenchimento e contorno', 'Shift+X'], ['Duplicar repetindo o deslocamento', 'Ctrl+D após mover a cópia'], ['Renomear (em lote com várias)', 'F2'], ['Ajustar frame ao conteúdo', 'Ctrl+Alt+Shift+R'], ['Copiar como PNG', 'Ctrl+Shift+C'], ['Guias: criar / mostrar', 'Arrastar da régua / Shift+G'], ['Recolher camadas', 'Alt+L'],
       ['Zoom', 'Ctrl+roda, Ctrl++ / Ctrl+-'], ['Ajustar tudo / seleção / 100%', 'Shift+1 / Shift+2 / Shift+0'], ['Réguas / Minimapa', 'Shift+R / Shift+M'], ['Grade de pixels', "Ctrl+'"], ['Contornos', 'Ctrl+Shift+O'], ['Ocultar interface', 'Ctrl+\\'], ['Tema', 'Alt+T'],
       ['Salvar cópia .grafo / Abrir', 'Ctrl+S / Ctrl+O'], ['Salvar versão', 'Ctrl+Alt+S'], ['Exportar', 'Ctrl+Shift+E'], ['Apresentar', 'Ctrl+Alt+Enter'], ['Atalhos', 'Ctrl+/'],
       ['Restringir ângulo e proporção', 'Shift ao arrastar'], ['Desenhar do centro', 'Alt ao arrastar'], ['Desligar encaixe', 'Ctrl ao arrastar'],
@@ -1823,7 +2310,7 @@ export class UI {
 
   aboutDialog() {
     this.modal('Sobre o Grafo', el('div', {},
-      el('div', { style: { display: 'flex', gap: '14px', alignItems: 'center' } }, el('span', { class: 'logo big' }, logoSvg()), el('div', {}, el('b', { text: `Grafo ${window.grafoDesktop ? window.grafoDesktop.version : '1.1.0'}`, style: { fontSize: '16px' } }), el('div', { class: 'hint', text: 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.' }))),
+      el('div', { style: { display: 'flex', gap: '14px', alignItems: 'center' } }, el('span', { class: 'logo big' }, logoSvg()), el('div', {}, el('b', { text: `Grafo ${window.grafoDesktop ? window.grafoDesktop.version : APP_VERSION}`, style: { fontSize: '16px' } }), el('div', { class: 'hint', text: 'Copyright (©) 2026 Erik Pimenta. Todos os direitos reservados.' }))),
       el('p', { text: 'Editor colaborativo de design de interfaces e diagramas.' }),
       el('p', { class: 'hint', text: `Render: ${this.app.renderer.backend} · Núcleo geométrico: ${this.app.engineMode} · Modo: ${this.store.mode === 'server' ? 'servidor' : window.grafoDesktop ? 'app desktop' : 'local'}` }),
       el('p', { class: 'hint', text: 'Uso permitido nos termos da licença do repositório oficial: github.com/ravelroot/Collaborative-Design-and-Diagram-Editor' })), [{ label: 'Fechar', primary: true }]);

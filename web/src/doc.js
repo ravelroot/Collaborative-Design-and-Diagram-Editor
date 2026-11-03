@@ -442,10 +442,10 @@ export class Store {
     const bc = new BroadcastChannel('grafo:' + this.fileId);
     this.bc = bc;
     this.doc.on('update', (update, origin) => {
-      if (origin !== REMOTE_BC) bc.postMessage({ t: 'u', d: update });
+      if (origin !== REMOTE_BC && this.bc === bc) bc.postMessage({ t: 'u', d: update });
     });
     this.awareness.on('update', ({ added, updated, removed }, origin) => {
-      if (origin === REMOTE_BC) return;
+      if (origin === REMOTE_BC || this.bc !== bc) return;
       const changed = added.concat(updated, removed);
       bc.postMessage({ t: 'a', d: encodeAwarenessUpdate(this.awareness, changed) });
     });
@@ -475,8 +475,12 @@ export class Store {
       this.saveLocal.flush();
     } catch {}
     if (this.provider) this.provider.destroy();
-    if (this.bc) this.bc.close();
     this.awareness.destroy();
+    if (this.bc) {
+      const bc = this.bc;
+      this.bc = null;
+      bc.close();
+    }
     this.doc.destroy();
   }
 }

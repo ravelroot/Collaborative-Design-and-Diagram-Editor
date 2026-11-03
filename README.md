@@ -17,11 +17,13 @@
 
 ---
 
-> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as três maneiras de rodar (app desktop, servidor completo e dois cliques no HTML), o tutorial rápido, a tela, cada ferramenta e atalho, frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
+> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as três maneiras de rodar (app desktop, servidor completo e dois cliques no HTML), o tutorial rápido, a galeria **Novo quadro** com os modelos, os padrões de projeto e a aula, a tela, cada ferramenta e atalho (inclusive ações rápidas, medição, conta-gotas e guias), frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
 
 > **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL e as regras de integridade, retenção e segurança dos dados.
 
-> **Versão 1.1.0 (Atual):** chegou o **app desktop para Windows**: o [`Grafo.exe`](Grafo.exe) abre o editor maximizado numa janela própria, sem servidor, sem navegador e sem instalar nada, com atalho no menu Iniciar e a janela **Salvar como** do Windows para salvar e exportar. Na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e onde fica cada painel (dá para pular). O logo no canto da tela ficou com fundo branco. Nada muda no formato `.grafo`, na API nem no banco. Detalhes em [App desktop e tutorial rápido (1.1.0)](#app-desktop-e-tutorial-rápido-110).
+> **Versão 1.2.0 (Atual):** chegou o **Novo quadro** (Ctrl+Alt+N): escolha um tipo de diagrama e o quadro abre já montado para editar, entre **63 modelos** em dez categorias (UML e SysML, processos, arquitetura, dados, infraestrutura, segurança, testes, UX e produto, gestão e análise) e **46 padrões de projeto** que abrem como diagrama ou como aula. No modo **Aula** você começa por uma raiz no topo e desce pelas ramificações, abre as ideias para os lados ou conta a história no sentido inverso; Tab cria uma ramificação e Enter uma ideia irmã. Se preferir, comece em branco. Também chegaram ferramentas de edição profissional: **ações rápidas** (Ctrl+K) para achar qualquer comando, ferramenta, página, forma ou camada pelo nome; **medição de distâncias** com Alt; **conta-gotas** (I); **guias** puxadas das réguas, com encaixe; **copiar e colar propriedades**; **organizar em grade**; **renomear em lote** (F2); **travar proporção**; **ajustar frame ao conteúdo**; **maiúsculas e minúsculas** no texto; **copiar como PNG**; busca no painel **Camadas**; Tab para andar pelas camadas e Ctrl+D que repete o último deslocamento. O **espelhar** agora inverte de verdade formas, imagens e seleções inteiras. Nada muda na API nem no banco; arquivos `.grafo` antigos abrem normalmente. Detalhes em [Novo quadro: modelos e aula (1.2.0)](#novo-quadro-modelos-e-aula-120) e [Ferramentas profissionais (1.2.0)](#ferramentas-profissionais-120).
+
+> **Versão 1.1.0:** chegou o **app desktop para Windows**: o [`Grafo.exe`](Grafo.exe) abre o editor maximizado numa janela própria, sem servidor, sem navegador e sem instalar nada, com atalho no menu Iniciar e a janela **Salvar como** do Windows para salvar e exportar. Na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e onde fica cada painel (dá para pular). O logo no canto da tela ficou com fundo branco. Nada muda no formato `.grafo`, na API nem no banco. Detalhes em [App desktop e tutorial rápido (1.1.0)](#app-desktop-e-tutorial-rápido-110).
 
 > **Versão 1.0.1:** o Grafo abre com dois cliques em qualquer HTML do projeto: o [`Grafo.html`](Grafo.html), o novo [`index.html`](index.html) da raiz ou o `web/index.html`, que agora leva direto ao editor em vez de ficar parado em "Carregando". Detalhes em [Arquivo único](#3-arquivo-único-grafohtml).
 
@@ -61,6 +63,66 @@
   <img src="docs/images/tela-componentes.png" width="49%" alt="Instância do botão com o texto substituído por Continuar e a seção Instância no painel">
 </p>
 
+## Novo quadro: modelos e aula (1.2.0)
+
+<p align="center">
+  <img src="docs/images/tela-modelos.png" width="49%" alt="Galeria Novo quadro na categoria Arquitetura, com miniaturas dos modelos C4, em camadas, microsserviços, hexagonal, orientada a eventos e Clean Architecture">
+  <img src="docs/images/tela-aula.png" width="49%" alt="Aula do padrão Strategy: raiz no topo com Problema, Solução, Participantes e Exemplo, e a seção Aula no painel Design">
+</p>
+
+**Arquivo → Novo quadro…** (Ctrl+Alt+N) abre a galeria. Cada modelo cria um arquivo novo com o quadro já montado, com formas, textos e conectores de verdade, prontos para editar; a busca encontra pelo nome ou pela descrição e os mesmos modelos aparecem nas **Ações rápidas** (Ctrl+K).
+
+| Começar | O que abre |
+|---|---|
+| Em branco | Uma página vazia |
+| Aula · Da raiz para baixo | A raiz no topo e as ramificações descendo |
+| Aula · Ramificações | A raiz à esquerda e as ideias se abrindo para os lados |
+| Aula · História ao contrário | Comece pelo fim e suba até a origem, com as setas apontando para a raiz |
+
+| Categoria | Modelos |
+|---|---|
+| UML e SysML (16) | Classe, sequência, caso de uso, máquina de estados, atividade, componente, implantação, objeto, pacote, comunicação, tempo, visão geral de interação, requisitos, definição de blocos (BDD), bloco interno (IBD) e paramétrico |
+| Processos (6) | Fluxograma, BPMN 2.0, fluxo de dados (DFD), mapa de processo, SIPOC e árvore de decisão |
+| Arquitetura (8) | C4 contexto, C4 contêineres, C4 componentes, em camadas, microsserviços, hexagonal, orientada a eventos e Clean Architecture |
+| Dados (6) | Entidade-relacionamento, modelo relacional, esquema de banco, data warehouse, pipeline de dados e árvore JSON |
+| Infraestrutura (6) | Rede, arquitetura em nuvem, Kubernetes, Docker e contêineres, CI/CD e topologia de ambientes |
+| Segurança (3) | Modelo de ameaças (STRIDE), fluxo de autenticação (OAuth 2.0 + PKCE) e Zero Trust |
+| Testes (3) | Pirâmide de testes, plano de testes e máquina de estados de teste |
+| UX e produto (5) | Jornada do usuário, fluxo do usuário, wireframe, roadmap e Kanban |
+| Gestão (4) | Organograma, matriz RACI, Gantt e matriz de riscos |
+| Análise (6) | Mapa mental, Ishikawa, SWOT, Venn, matriz 2×2 e pirâmide de conceitos |
+| Padrões de projeto (46) | Os 23 do GoF, Object Pool e Null Object, Repository, Unit of Work, Specification, injeção de dependência, Service Locator, MVC, MVVM, CQRS, Event Sourcing, Publish/Subscribe, Circuit Breaker, Retry, Bulkhead, Saga, Transactional Outbox, API Gateway, Backend for Frontend, Strangler Fig, Sidecar, Ambassador e Anti-Corruption Layer. **Diagrama** abre as classes com a nota de intenção; **Aula** abre a árvore com problema, solução, participantes e exemplo |
+
+**Na aula**, cada ideia é uma ramificação: com uma ideia selecionada, **Tab** cria uma ramificação e **Enter** uma ideia irmã, já em edição, e a árvore se reorganiza sozinha. A seção **Aula** do painel Design tem os mesmos botões, troca o sentido (da raiz para baixo, para os lados ou a história ao contrário) e reorganiza a árvore. O quadro montado não entra no desfazer: Ctrl+Z desfaz só o que você mudou depois.
+
+## Ferramentas profissionais (1.2.0)
+
+<p align="center">
+  <img src="docs/images/tela-acoes-rapidas.png" width="49%" alt="Janela Ações rápidas com a busca org, mostrando o modelo Organograma e os comandos do menu Organizar com os atalhos">
+  <img src="docs/images/tela-medicao.png" width="49%" alt="Item selecionado dentro do frame Detalhes, com Alt pressionado mostrando as distâncias até as quatro bordas do frame">
+</p>
+
+| Recurso | Como usar | O que faz |
+|---|---|---|
+| Ações rápidas | Ctrl+K ou Ctrl+P | Busca qualquer comando dos menus, ferramenta, página, forma das bibliotecas, componente ou camada pelo nome, sem acento e em qualquer ordem de palavras; setas escolhem, Enter executa e os últimos usados aparecem primeiro |
+| Medir distâncias | Selecione e segure Alt | Mostra em pixels a distância até o objeto sob o mouse ou, sem nada embaixo, até as bordas do frame pai |
+| Conta-gotas | I | Pega a cor de onde você clicar e aplica no preenchimento da seleção (no texto, na cor do texto; em linhas e conectores, no contorno); sem seleção, copia o hexadecimal. No Chrome, no Edge e no app desktop usa o conta-gotas do sistema, que lê qualquer pixel da tela |
+| Guias | Arraste da régua; Shift+G mostra ou esconde | Linhas fixas por página, com encaixe ao mover, desenhar e redimensionar; arraste a guia de volta para a régua para tirar e use **Exibir → Remover guias da página** para limpar |
+| Copiar e colar propriedades | Ctrl+Alt+C / Ctrl+Alt+Shift+V | Leva preenchimento, contorno, raio, opacidade, mistura, efeitos e estilo de texto de um objeto para outros |
+| Organizar em grade | Ctrl+Alt+Shift+T | Arruma a seleção em linhas e colunas com espaçamento igual, mantendo a ordem de leitura |
+| Renomear | F2 | Com uma camada, edita o nome no painel; com várias, renomeia em lote com `$n` para numerar e `$&` para repetir o nome atual |
+| Travar proporção | Botão de corrente entre **L** e **A** | Mudar a largura ajusta a altura (e o contrário) e as alças mantêm a proporção |
+| Ajustar ao conteúdo | Ctrl+Alt+Shift+R | Encolhe ou estica o frame ou a seção até caber exatamente nos filhos |
+| Maiúsculas e minúsculas | Seção **Texto** | Como foi digitado, MAIÚSCULAS, minúsculas ou Primeira Letra Maiúscula, sem mudar o texto guardado |
+| Copiar como PNG | Ctrl+Shift+C ou clique direito | Copia a seleção como imagem para colar em outros programas |
+| Trocar preenchimento e contorno | Shift+X | Inverte as duas cores |
+| Duplicação inteligente | Ctrl+D | Duplique, mova a cópia e o próximo Ctrl+D repete o mesmo deslocamento |
+| Navegar pelas camadas | Tab / Shift+Tab | Seleciona a próxima ou a anterior camada do mesmo nível |
+| Busca de camadas | Campo **Buscar camadas** | Filtra a árvore pelo nome e mostra o caminho de cada camada; clicar leva até ela; Alt+L recolhe ou expande todas |
+| Espelhar | Shift+H / Shift+V | Inverte formas assimétricas, polígonos e imagens; com vários objetos, espelha o conjunto, e os conectores trocam de lado junto |
+
+Também foram corrigidos: abrir ou criar outro arquivo deixava o arquivo anterior respondendo ao teclado e ao mouse por trás e repetia o botão **Apresentar** na barra; o Shift+C não abria a aba **Comentários**; e a sombra com deslocamento vertical zero aparecia 4 px abaixo no canvas e não no arquivo exportado.
+
 ## App desktop e tutorial rápido (1.1.0)
 
 <p align="center">
@@ -91,7 +153,7 @@ Na primeira vez que o Grafo abre, uma janela pergunta se você quer um tutorial 
 | 4. Diagramas | Nota adesiva, conector e a aba **Formas** com as bibliotecas |
 | 5. Páginas e camadas | O painel da esquerda: páginas, árvore de camadas, ocultar e travar |
 | 6. Propriedades | O painel da direita: Design, Protótipo, Dados e Comentários |
-| 7. Navegar e comentar | Mão, comentário, zoom, minimapa e desfazer |
+| 7. Navegar e comentar | Mão, comentário, conta-gotas, ações rápidas, zoom, minimapa e desfazer |
 | 8. Colaborar e apresentar | Quem está no arquivo, conexão, **Apresentar** e **Compartilhar** |
 | 9. Salvar e exportar | Menu **Arquivo**, salvar cópia, versões e exportação (no app desktop, também a janela Salvar como e o F11) |
 
@@ -135,23 +197,34 @@ Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que f
 | Conector | X | Arraste de uma forma a outra |
 | Mão | H ou Espaço | Arrasta a visão (também com o botão do meio) |
 | Comentário | C | Abre uma conversa no ponto clicado |
+| Conta-gotas | I | Pega a cor de qualquer ponto e aplica na seleção |
 
 | Ação | Atalho |
 |---|---|
 | Desfazer / refazer | Ctrl+Z / Ctrl+Shift+Z ou Ctrl+Y |
 | Copiar / recortar / colar / colar no lugar | Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+Shift+V |
-| Duplicar | Ctrl+D ou Alt + arrastar |
+| Duplicar (repete o último deslocamento) | Ctrl+D ou Alt + arrastar |
+| Ações rápidas | Ctrl+K ou Ctrl+P |
+| Copiar / colar propriedades | Ctrl+Alt+C / Ctrl+Alt+Shift+V |
+| Copiar como PNG | Ctrl+Shift+C |
+| Renomear (em lote com várias camadas) | F2 |
+| Próxima / anterior camada | Tab / Shift+Tab |
+| Medir distâncias | Alt com o mouse sobre outro objeto |
 | Agrupar / desagrupar / frame da seleção | Ctrl+G / Ctrl+Shift+G / Ctrl+Alt+G |
 | Avançar / recuar / frente / trás | Ctrl+] / Ctrl+[ / Ctrl+Shift+] / Ctrl+Shift+[ |
 | Alinhar esquerda / centro / direita | Alt+A / Alt+H / Alt+D |
 | Alinhar topo / meio / base | Alt+W / Alt+V / Alt+S |
-| Distribuir | Ctrl+Alt+H / Ctrl+Alt+V |
-| Espelhar | Shift+H / Shift+V |
+| Distribuir / organizar em grade | Ctrl+Alt+H / Ctrl+Alt+V / Ctrl+Alt+Shift+T |
+| Espelhar / trocar preenchimento e contorno | Shift+H / Shift+V / Shift+X |
+| Ajustar frame ao conteúdo | Ctrl+Alt+Shift+R |
 | Mostrar/ocultar / bloquear | Ctrl+Shift+H / Ctrl+Shift+L |
 | Opacidade de 10% a 100% | 1 … 9, 0 |
 | Layout automático do diagrama | Ctrl+Shift+Y |
 | Zoom / ajustar tudo / seleção / 100% | Ctrl + roda, Ctrl++ e Ctrl+- / Shift+1 / Shift+2 / Shift+0 |
 | Réguas / minimapa / grade / contornos | Shift+R / Shift+M / Ctrl+' / Ctrl+Shift+O |
+| Guias / recolher camadas | Arrastar da régua e Shift+G / Alt+L |
+| Novo quadro (modelos e aula) | Ctrl+Alt+N |
+| Aula: ramificação / ideia irmã | Tab / Enter |
 | Salvar cópia .grafo / abrir / salvar versão | Ctrl+S / Ctrl+O / Ctrl+Alt+S |
 | Exportar / apresentar | Ctrl+Shift+E / Ctrl+Alt+Enter |
 | Ocultar interface / tema / atalhos | Ctrl+\\ / Alt+T / Ctrl+/ |
@@ -160,14 +233,14 @@ Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que f
 
 | Menu | Comandos |
 |---|---|
-| Arquivo | Novo arquivo, abrir `.grafo`, arquivos recentes, salvar cópia `.grafo`, salvar versão, histórico de versões, importar imagem ou SVG, importar CSV, exportar |
-| Editar | Desfazer, refazer, copiar, recortar, colar, duplicar, excluir, selecionar tudo, selecionar mesma cor e mesmo tipo |
-| Exibir | Réguas, grade de pixels, minimapa, contornos, encaixe inteligente, encaixe em pixels, links de protótipo, render WebGPU, zoom, tema e ocultar interface |
-| Objeto | Agrupar, desagrupar, frame da seleção, auto layout, criar componente, desanexar instância, booleanas, espelhar, bloquear, ocultar |
-| Organizar | Ordem das camadas, alinhar, distribuir e layout automático do diagrama nas duas direções |
-| Ajuda | **Tutorial rápido**, atalhos, seu nome e cor, sobre o Grafo |
+| Arquivo | Novo quadro (modelos e aula), novo arquivo em branco, abrir `.grafo`, arquivos recentes, salvar cópia `.grafo`, salvar versão, histórico de versões, importar imagem ou SVG, importar CSV, exportar |
+| Editar | Desfazer, refazer, copiar, recortar, colar, duplicar, excluir, copiar e colar propriedades, selecionar tudo, próxima e anterior camada, selecionar mesma cor e mesmo tipo, ações rápidas |
+| Exibir | Réguas, grade de pixels, minimapa, contornos, guias, remover guias da página, encaixe inteligente, encaixe em pixels, links de protótipo, render WebGPU, zoom, tema e ocultar interface |
+| Objeto | Agrupar, desagrupar, frame da seleção, auto layout, ajustar ao conteúdo, renomear, criar componente, desanexar instância, booleanas, espelhar, trocar preenchimento e contorno, travar proporção, bloquear, ocultar |
+| Organizar | Ordem das camadas, alinhar, distribuir, organizar em grade e layout automático do diagrama nas duas direções |
+| Ajuda | **Ações rápidas**, **tutorial rápido**, atalhos, seu nome e cor, sobre o Grafo |
 
-O clique direito no canvas abre os comandos mais usados, inclusive **Colar aqui** e **Copiar como SVG**.
+O clique direito no canvas abre os comandos mais usados, inclusive **Colar aqui**, **Copiar e colar propriedades**, **Organizar em grade**, **Copiar como PNG**, **Copiar como SVG** e **Renomear**.
 
 ## Diagramas
 
@@ -423,8 +496,8 @@ Diagramas, campos, restrições, índices e consultas prontas estão no [`Banco-
 | Suíte | O que cobre | Resultado |
 |---|---|---|
 | Núcleo C++/WASM (33 testes) | Entradas degeneradas e NaN, fuzz de 300 pares de polígonos nas quatro booleanas, rota com 500 obstáculos, índice com 10.000 caixas conferido contra força bruta, layout com 300 nós e 400 arestas, memória estável em 5.000 rodadas, WASM e JavaScript com o mesmo resultado | Rota com 500 obstáculos em 0,9 a 35 ms; 1.000 consultas no índice em 6 ms |
-| Editor (15 testes) | Calculadora dos campos, CSV, as 107 formas em vários tamanhos, geometria, conectores ortogonais, desfazer só o que é seu, `.grafo` de ida e volta, três réplicas com 600 edições concorrentes entregues fora de ordem | As réplicas convergem; com 20.000 objetos, 200 consultas de filhos levam cerca de 10 ms |
-| Ponta a ponta (11 cenários) | GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, exportação SVG e PDF, duas abas colaborando, 3.000 objetos, o `Grafo.html` direto do disco, o tutorial rápido (aparece uma vez, avança, pula e reabre pelo menu Ajuda) e a ponte do app desktop (janela Salvar como e F11), sem nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
+| Editor (23 testes) | Calculadora dos campos, CSV, as 107 formas em vários tamanhos, os 63 modelos e os 46 padrões (como diagrama e como aula) montados no documento sem pontas soltas, a aula ao contrário, geometria, conectores ortogonais, cores do conta-gotas, distâncias da medição, organizar em grade, maiúsculas e minúsculas, clique em forma espelhada, desfazer só o que é seu, `.grafo` de ida e volta, três réplicas com 600 edições concorrentes entregues fora de ordem | As réplicas convergem; com 20.000 objetos, 200 consultas de filhos levam cerca de 10 ms |
+| Ponta a ponta (18 cenários) | GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, galeria Novo quadro com modelo e aula (Tab e Enter criando ramificações), ações rápidas pelo teclado, espelhar com conectores, trocar cores, copiar e colar propriedades, organizar em grade, duplicação inteligente, Tab entre camadas, trava de proporção, conta-gotas, medição com Alt, guias puxadas da régua, ajustar ao conteúdo, renomear em lote, busca de camadas, exportação SVG e PDF, duas abas colaborando, 3.000 objetos, o `Grafo.html` direto do disco, o tutorial rápido (aparece uma vez, avança, pula e reabre pelo menu Ajuda) e a ponte do app desktop (janela Salvar como e F11), sem nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
 | App desktop | Build reproduzível do `Grafo.exe` (gerado de novo e comparado byte a byte), `go vet` e `gofmt` no código Go | Idêntico; 0 problemas |
 | Servidor (24 testes) | Protocolo, UUID, limites, limite de taxa, convergência, reconexão depois de 25 updates perdidos, mensagens malformadas, 50 clientes numa sala e 20 salas em paralelo | 50 clientes convergem em 80 ms; 1.000 updates em 20 salas em 288 ms |
 
@@ -448,7 +521,7 @@ desktop/                    código do app desktop em Go (janela WebView2, tela 
 web/                        editor
   index.html, css/, img/    página, estilos com a paleta e logo
   boot.js                   leva ao Grafo.html quando o index.html é aberto direto do disco
-  src/                      módulos: documento, render, editor, painéis, exportação, apresentação, tutorial e exemplo
+  src/                      módulos: documento, render, editor, painéis, exportação, apresentação, modelos e aula, tutorial e exemplo
   src/engine/               ponte JavaScript do núcleo WebAssembly, com versões em JavaScript
   assets/engine.wasm        núcleo compilado (gerado)
 engine/                     núcleo geométrico em C++17 (include/, src/, build.sh, CMakeLists.txt)

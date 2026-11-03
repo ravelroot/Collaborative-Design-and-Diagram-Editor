@@ -6,6 +6,8 @@ import { Engine } from './engine/index.js';
 import { uuid, storage } from './util.js';
 import { seedDocument } from './seed.js';
 import { startTutorial, tutorialPending } from './tutorial.js';
+import { buildBoard, applyBoard, aulaStart, findTemplate } from './templates.js';
+import { fitText } from './geom.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -79,6 +81,10 @@ class App {
 
   async open(id, seed = false, data = null) {
     if (this.store) {
+      if (this.ui) this.ui.destroy();
+      if (this.editor) this.editor.destroy();
+      this.dom.presentBtn.innerHTML = '';
+      this.dom.avatars.innerHTML = '';
       this.store.destroy();
       this.renderer.destroy();
       this.dom.leftPanel.innerHTML = '';
@@ -123,6 +129,31 @@ class App {
     history.replaceState(null, '', `#/arquivo/${id}`);
     await this.open(id, false, data);
     if (!data) this.store.name = 'Sem título';
+  }
+
+  openTemplate(id, lesson = false) {
+    const t = findTemplate(id);
+    return t ? this.newFromTemplate(t, lesson) : null;
+  }
+
+  async newFromTemplate(t, lesson = false) {
+    await this.newFile();
+    const store = this.store;
+    const ed = this.editor;
+    const aula = t.cat === 'aula' || lesson;
+    const items = buildBoard(t.cat === 'aula' ? aulaStart(t.dir) : lesson ? t.lesson : t.build);
+    store.transact(() => {
+      applyBoard(store, ed.page, items, { measure: (n) => fitText(n, store) });
+      const info = store.pageInfo.get(ed.page) || {};
+      store.pageInfo.set(ed.page, { ...info, name: aula ? 'Aula' : t.name, ...(aula ? { aula: t.dir || 'down' } : {}) });
+      ed.relayout();
+    }, 'template');
+    store.name = t.cat === 'aula' ? 'Aula' : lesson ? `Aula · ${t.name}` : t.name;
+    ed.select([]);
+    ed.zoomToFit(false);
+    this.ui.updateTop();
+    this.ui.renderAll();
+    return store;
   }
 
   applyTheme() {

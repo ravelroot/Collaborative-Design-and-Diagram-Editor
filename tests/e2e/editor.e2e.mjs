@@ -32,7 +32,7 @@ const drag = async (a, b) => {
 before(async () => {
   server = spawn(process.execPath, [path.join(root, 'scripts', 'serve.mjs')], { env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 600));
-  browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
+  browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, acceptDownloads: true });
   await ctx.addInitScript(() => {
     try {
@@ -128,6 +128,253 @@ test('auto layout, componente e booleana', async () => {
     return { layout: fr.layout.mode, w: st.get(fr.id).w, comp: st.get(cid).type, inst: st.get(inst).componentId === cid, bool: st.get([...ed.sel][0]).type };
   });
   assert.deepEqual(r, { layout: 'h', w: 320, comp: 'component', inst: true, bool: 'boolean' });
+});
+
+test('ações rápidas buscam e executam comandos', async () => {
+  await page.evaluate(() => window.grafo.editor.select([]));
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Control+k');
+  await page.waitForSelector('.palette-input');
+  await page.keyboard.type('retangulo');
+  const first = await page.locator('.palette-item.active .palette-label').textContent();
+  assert.match(first, /Retângulo/);
+  await page.keyboard.type(' ferramenta');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('.palette-back').count(), 0);
+  assert.equal(await page.evaluate(() => window.grafo.editor.tool), 'rect');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('decisao');
+  await page.keyboard.press('Enter');
+  const shape = await page.evaluate(() => window.grafo.store.get([...window.grafo.editor.sel][0]));
+  assert.equal(shape.type, 'shape');
+  await page.keyboard.press('Control+k');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.palette-back').count(), 0);
+});
+
+test('espelha seleção, troca cores, copia propriedades e organiza em grade', async () => {
+  const r = await page.evaluate(async () => {
+    const g = window.grafo;
+    const ed = g.editor;
+    const st = g.store;
+    const a = ed.commit(() => st.add({ type: 'polygon', page: ed.page, parent: null, x: 8000, y: 0, w: 100, h: 80, sides: 3, fill: { type: 'solid', color: '#5D1C16', alpha: 1 }, stroke: { color: '#A3B4BE', alpha: 1 }, strokeWidth: 3, radius: 4 }));
+    const b = ed.commit(() => st.add({ type: 'rect', page: ed.page, parent: null, x: 8300, y: 0, w: 50, h: 50, fill: { type: 'solid', color: '#F6E4A6', alpha: 1 } }));
+    const c = ed.commit(() => st.add(ed.newConnector({ node: a, side: 'right' }, { node: b, side: 'left' }, 'connector')));
+    const d = ed.commit(() => st.add({ type: 'star', page: ed.page, parent: null, x: 8600, y: 0, w: 90, h: 90, rotation: 30, sides: 5, inner: 0.45 }));
+    ed.select([a, b]);
+    ed.flip('h');
+    const fa = st.get(a);
+    const fb = st.get(b);
+    const fc = st.get(c);
+    ed.select([d]);
+    ed.flip('v');
+    const fd = st.get(d);
+    ed.select([a]);
+    ed.swapFillStroke();
+    const sw = st.get(a);
+    ed.copyProps();
+    ed.select([b]);
+    ed.pasteProps();
+    const pb = st.get(b);
+    const items = [0, 1, 2, 3].map((i) => ed.commit(() => st.add({ type: 'rect', page: ed.page, parent: null, x: 9000 + (i % 2) * 140 + (i === 3 ? 13 : 0), y: Math.floor(i / 2) * 110 + (i === 1 ? 9 : 0), w: 100, h: 80, fill: { type: 'solid', color: '#D6BDB8', alpha: 1 } })));
+    ed.select(items);
+    await ed.tidy(20);
+    const grid = items.map((id) => [st.get(id).x, st.get(id).y]);
+    return { fa: [fa.x, fa.flipX], fd: [fd.x, fd.y, fd.rotation, fd.flipY], fb: fb.x, sides: [fc.from.side, fc.to.side], sw: [sw.fill.color, sw.stroke.color], pb: [pb.fill.color, pb.stroke && pb.stroke.color, pb.strokeWidth, pb.radius], grid };
+  });
+  assert.deepEqual(r.fa, [8250, true]);
+  assert.deepEqual(r.fd, [8600, 0, -30, true]);
+  assert.equal(r.fb, 8000);
+  assert.deepEqual(r.sides, ['left', 'right']);
+  assert.deepEqual(r.sw, ['#A3B4BE', '#5D1C16']);
+  assert.deepEqual(r.pb, ['#A3B4BE', '#5D1C16', 3, 4]);
+  assert.deepEqual(r.grid, [[9000, 0], [9120, 0], [9000, 100], [9120, 100]]);
+});
+
+test('Ctrl+D repete o deslocamento, Tab navega e a proporção fica travada', async () => {
+  const r = await page.evaluate(() => {
+    const g = window.grafo;
+    const ed = g.editor;
+    const st = g.store;
+    const a = ed.commit(() => st.add({ type: 'rect', page: ed.page, parent: null, x: 12000, y: 0, w: 100, h: 50, fill: { type: 'solid', color: '#D6BDB8', alpha: 1 } }));
+    ed.select([a]);
+    const [b] = ed.smartDuplicate();
+    ed.commit(() => ed.translate(st.get(b), 130, -20));
+    const [c] = ed.smartDuplicate();
+    const pos = [st.get(b).x, st.get(c).x, st.get(c).y];
+    ed.select([a]);
+    ed.selectSibling(1);
+    const next = [...ed.sel][0];
+    ed.selectSibling(-1);
+    const prev = [...ed.sel][0];
+    ed.setProp({ lockRatio: true }, [a]);
+    return { pos, next, prev, a, b };
+  });
+  assert.deepEqual(r.pos, [12150, 12300, 0]);
+  assert.equal(r.next, r.b);
+  assert.equal(r.prev, r.a);
+  await page.evaluate(() => window.grafo.ui.renderRight());
+  const w = page.locator('#rightPanel input[aria-label="Largura"]');
+  await w.fill('200');
+  await w.press('Enter');
+  const n = await page.evaluate((id) => window.grafo.store.get(id), r.a);
+  assert.deepEqual([n.w, n.h], [200, 100]);
+  assert.equal(await page.locator('#rightPanel .ratio-btn.active').count(), 1);
+});
+
+test('conta-gotas pega a cor do objeto e mede distâncias com Alt', async () => {
+  const ids = await page.evaluate(() => {
+    Object.defineProperty(window, 'EyeDropper', { value: undefined, configurable: true, writable: true });
+    const g = window.grafo;
+    const ed = g.editor;
+    const st = g.store;
+    const src = ed.commit(() => st.add({ type: 'ellipse', page: ed.page, parent: null, x: 14000, y: 0, w: 120, h: 120, fill: { type: 'solid', color: '#7A6E46', alpha: 1 } }));
+    const dst = ed.commit(() => st.add({ type: 'rect', page: ed.page, parent: null, x: 14200, y: 30, w: 60, h: 60, fill: { type: 'solid', color: '#FFFFFF', alpha: 1 } }));
+    ed.zoomTo({ x: 13900, y: -100, w: 500, h: 320 }, false, 1);
+    ed.select([dst]);
+    return { src, dst };
+  });
+  await page.keyboard.press('i');
+  const s = await at(14060, 60);
+  await page.mouse.click(s.x, s.y);
+  const color = await page.evaluate((id) => window.grafo.store.get(id).fill.color, ids.dst);
+  assert.equal(color, '#7A6E46');
+  assert.equal(await page.evaluate(() => window.grafo.editor.tool), 'select');
+  await page.keyboard.down('Alt');
+  await page.mouse.move(s.x, s.y + 2);
+  const gaps = await page.evaluate(() => {
+    const ed = window.grafo.editor;
+    return { on: ed.measuring, target: ed.measureTarget(ed.selection)?.id };
+  });
+  await page.keyboard.up('Alt');
+  assert.equal(gaps.on, true);
+  assert.equal(gaps.target, ids.src);
+});
+
+test('busca de camadas filtra pelo nome', async () => {
+  await page.evaluate(() => {
+    const g = window.grafo;
+    const ed = g.editor;
+    ed.commit(() => g.store.add({ type: 'rect', page: ed.page, parent: null, name: 'Botão Comprar', x: 16000, y: 0, w: 80, h: 40 }));
+    ed.select([]);
+    g.ui.leftTab = 'layers';
+    g.ui.renderLeft();
+  });
+  const search = page.locator('.layer-search');
+  await search.fill('botao comp');
+  await page.waitForTimeout(100);
+  const rows = await page.locator('#leftPanel .layer').allTextContents();
+  assert.equal(rows.length, 1);
+  assert.match(rows[0], /Botão Comprar/);
+  await search.press('Escape');
+  assert.ok((await page.locator('#leftPanel .layer').count()) > 1);
+});
+
+test('guias da régua, ajustar frame, renomear em lote e maiúsculas', async () => {
+  await page.evaluate(() => {
+    const ed = window.grafo.editor;
+    ed.select([]);
+    ed.zoomTo({ x: 17900, y: -100, w: 600, h: 400 }, false, 1);
+  });
+  const rx = await page.locator('#rulerX').boundingBox();
+  const target = await at(18000, 120);
+  await page.mouse.move(rx.x + 300, rx.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(target.x, target.y, { steps: 6 });
+  await page.mouse.up();
+  const guides = await page.evaluate(() => window.grafo.editor.pageGuides().map((g) => [g.axis, g.v]));
+  assert.deepEqual(guides, [['y', 120]]);
+  const r = await page.evaluate(() => {
+    const g = window.grafo;
+    const ed = g.editor;
+    const st = g.store;
+    const fr = ed.commit(() => st.add({ type: 'frame', page: ed.page, parent: null, name: 'Caixa', x: 18000, y: 0, w: 400, h: 400, fill: { type: 'solid', color: '#FFFFFF', alpha: 1 } }));
+    const kids = [0, 1, 2].map((i) => ed.commit(() => st.add({ type: 'rect', page: ed.page, parent: fr, name: 'Ret', x: 18040 + i * 60, y: 50 + i * 10, w: 40, h: 40 })));
+    const snap = ed.snapBox({ x: 18100, y: 117, w: 50, h: 50 }, ed.snapCandidates(new Set()));
+    ed.select([fr]);
+    ed.fitToContent();
+    const f = st.get(fr);
+    ed.select(kids);
+    g.ui.renameSelection();
+    const t = ed.commit(() => st.add({ type: 'text', page: ed.page, parent: null, x: 18600, y: 0, w: 10, h: 20, text: 'olá mundo', fontSize: 16, autoSize: 'width' }));
+    ed.select([t]);
+    ed.setProp({ textCase: 'title' });
+    return { fit: [f.x, f.y, f.w, f.h], kids, snapDy: snap.dy, t };
+  });
+  assert.deepEqual(r.fit, [18040, 50, 160, 60]);
+  assert.equal(r.snapDy, 3);
+  await page.locator('.modal input').first().fill('Card $n');
+  await page.getByRole('button', { name: 'Renomear' }).click();
+  const names = await page.evaluate((ids) => ids.map((id) => window.grafo.store.get(id).name), r.kids);
+  assert.deepEqual(names, ['Card 1', 'Card 2', 'Card 3']);
+  const titled = await page.evaluate(() => [...document.querySelectorAll('#rightPanel .icon-btn.active')].map((b) => b.title));
+  assert.ok(titled.includes('Primeira Letra Maiúscula'));
+  await page.keyboard.press('Shift+g');
+  assert.equal(await page.evaluate(() => window.grafo.editor.settings.guides), false);
+  await page.keyboard.press('Shift+g');
+  await page.evaluate(() => window.grafo.editor.clearGuides());
+});
+
+test('novo quadro a partir de modelo e aula com ramificações', async () => {
+  const before = await page.evaluate(() => window.grafo.store.fileId);
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Control+Alt+n');
+  await page.waitForSelector('.gallery');
+  assert.equal(await page.locator('.gallery-card').count(), 4);
+  await page.locator('.gallery-nav-btn[data-cat="process"]').click();
+  assert.equal(await page.locator('.gallery-card').count(), 6);
+  await page.locator('.gallery-search').fill('fluxograma');
+  await page.locator('.gallery-card[data-id="flowchart"]').click();
+  await page.waitForFunction((id) => window.grafo.store.fileId !== id && window.grafo.store.name === 'Fluxograma', before);
+  const flow = await page.evaluate(() => {
+    const g = window.grafo;
+    const nodes = [...g.store.nodes.values()].filter((n) => n.page === g.editor.page);
+    return { shapes: nodes.filter((n) => n.type === 'shape').length, conns: nodes.filter((n) => n.type === 'connector').length, undo: g.store.undo.canUndo(), buttons: document.querySelectorAll('#presentBtn .btn-label').length };
+  });
+  assert.equal(flow.shapes, 8);
+  assert.equal(flow.conns, 8);
+  assert.equal(flow.undo, false);
+  assert.equal(flow.buttons, 1);
+  await page.keyboard.press('Control+Alt+n');
+  await page.waitForSelector('.gallery');
+  await page.locator('.gallery-card[data-id="aula-down"]').click();
+  await page.waitForFunction(() => window.grafo.store.name === 'Aula');
+  const root = await page.evaluate(() => {
+    const g = window.grafo;
+    const r = [...g.store.nodes.values()].find((n) => n.page === g.editor.page && n.branch && n.text === 'Tema da aula');
+    g.editor.select([r.id]);
+    return r;
+  });
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Tab');
+  await page.waitForSelector('.text-editor');
+  await page.keyboard.type('Quarta ideia');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  const aula = await page.evaluate((rid) => {
+    const g = window.grafo;
+    const ed = g.editor;
+    const kids = ed.treeEdges().filter(([f]) => f === rid).map(([, t]) => g.store.get(t));
+    const fresh = kids.find((k) => k.text === 'Quarta ideia');
+    const r = g.store.get(rid);
+    return { kids: kids.length, below: kids.every((k) => k.y > r.y + r.h), overlap: kids.some((a) => kids.some((b) => a !== b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h)), fresh: !!fresh };
+  }, root.id);
+  assert.deepEqual(aula, { kids: 4, below: true, overlap: false, fresh: true });
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.text-editor');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate((rid) => window.grafo.editor.treeEdges().filter(([f]) => f === rid).length, root.id), 5);
+  await page.evaluate(() => window.grafo.openTemplate('pattern-observer', true));
+  await page.waitForFunction(() => window.grafo.store.name === 'Aula · Observer');
+  await page.evaluate(() => {
+    const g = window.grafo;
+    const ed = g.editor;
+    ed.setPage(g.store.addPage('E2E'));
+    const fr = ed.commit(() => g.store.add({ type: 'frame', page: ed.page, parent: null, name: 'Tela', x: 0, y: 0, w: 390, h: 300, fill: { type: 'solid', color: '#FFFFFF', alpha: 1 }, clip: true }));
+    ed.commit(() => g.store.add({ type: 'rect', page: ed.page, parent: fr, x: 20, y: 20, w: 120, h: 80, fill: { type: 'solid', color: '#D6BDB8', alpha: 1 } }));
+  });
 });
 
 test('exporta SVG e PDF válidos', async () => {

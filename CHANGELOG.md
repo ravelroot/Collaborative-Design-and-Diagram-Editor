@@ -2,6 +2,43 @@
 
 Todas as mudanças importantes do Grafo ficam registradas aqui.
 
+## [1.2.0] - 2026-11-03
+
+### Adicionado
+
+- **Novo quadro** (Arquivo → Novo quadro…, Ctrl+Alt+N): galeria com busca e miniaturas que abre um arquivo com o quadro já montado. Começar em branco ou numa **Aula** (da raiz para baixo, ramificações para os lados ou história ao contrário), **63 modelos** em dez categorias e **46 padrões de projeto** que abrem como diagrama ou como aula.
+- **Aula**: Tab cria uma ramificação e Enter uma ideia irmã, com a árvore reorganizada na hora; seção **Aula** no painel Design para trocar o sentido e reorganizar.
+- **Ações rápidas** (Ctrl+K ou Ctrl+P): busca qualquer comando dos menus, ferramenta, página, forma das bibliotecas, componente ou camada pelo nome, sem acento e em qualquer ordem de palavras; os últimos usados aparecem primeiro.
+- **Medição de distâncias**: com algo selecionado, segure Alt para ver em pixels a distância até o objeto sob o mouse ou até as bordas do frame pai.
+- **Conta-gotas** (I): aplica a cor no preenchimento, na cor do texto ou no contorno da seleção; sem seleção, copia o hexadecimal. Usa o conta-gotas do sistema no Chrome, no Edge e no app desktop.
+- **Guias** puxadas das réguas, guardadas por página, com encaixe ao mover, desenhar e redimensionar; Shift+G mostra ou esconde e **Exibir → Remover guias da página** limpa.
+- **Copiar e colar propriedades** (Ctrl+Alt+C e Ctrl+Alt+Shift+V).
+- **Organizar em grade** (Ctrl+Alt+Shift+T), mantendo a ordem de leitura e um espaçamento igual.
+- **Renomear** (F2), inclusive em lote, com `$n` para numerar e `$&` para repetir o nome atual.
+- **Travar proporção** no painel Design, respeitada nos campos de largura e altura e nas alças.
+- **Ajustar ao conteúdo** (Ctrl+Alt+Shift+R) para frames e seções.
+- **Maiúsculas e minúsculas** na seção Texto: como foi digitado, MAIÚSCULAS, minúsculas ou Primeira Letra Maiúscula.
+- **Copiar como PNG** (Ctrl+Shift+C e clique direito).
+- **Trocar preenchimento e contorno** (Shift+X).
+- **Busca no painel Camadas**, com o caminho de cada camada; Alt+L recolhe ou expande todas.
+- Tab e Shift+Tab selecionam a próxima ou a anterior camada do mesmo nível.
+- Ctrl+D repete o último deslocamento usado entre a original e a cópia.
+- Botão **Tamanho original** para imagens.
+- Testes de unidade e ponta a ponta para todas as novidades.
+
+### Alterado
+
+- **Espelhar** (Shift+H e Shift+V) inverte de verdade formas assimétricas, polígonos e imagens, espelha seleções com vários objetos como um conjunto e troca o lado dos conectores ligados.
+- O tutorial rápido apresenta o conta-gotas e as ações rápidas.
+- Manuais em PDF e README atualizados para a versão 1.2.0.
+
+### Corrigido
+
+- Abrir ou criar outro arquivo deixava o editor anterior ouvindo o teclado e o mouse e repetia o botão **Apresentar**; agora cada arquivo aberto libera o anterior por completo.
+- Fechar um arquivo gerava um erro de canal entre abas ao avisar a saída da pessoa.
+- Shift+C agora abre a aba **Comentários** na hora.
+- Sombra com deslocamento vertical zero aparecia 4 px abaixo no canvas, diferente do arquivo exportado.
+
 ## [1.1.0] - 2026-10-24
 
 ### Adicionado

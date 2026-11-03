@@ -62,6 +62,8 @@ export class SvgWriter {
     const sw = n.stroke ? n.strokeWidth ?? 1 : 0;
     const p = this.paint(n.fill, n.w, n.h);
     const dash = n.dash && n.dash[0] > 0 ? ` stroke-dasharray="${n.dash.join(' ')}"` : '';
+    const flip = (n.flipX || n.flipY) && n.type !== 'text';
+    if (flip) out += `<g transform="matrix(${n.flipX ? -1 : 1} 0 0 ${n.flipY ? -1 : 1} ${n.flipX ? num(n.w) : 0} ${n.flipY ? num(n.h) : 0})">`;
     if (n.type !== 'text') {
       for (const part of nodeParts(n)) {
         const d = part.d;
@@ -83,6 +85,7 @@ export class SvgWriter {
       out += `<image href="${escapeXml(href)}" width="${num(n.w)}" height="${num(n.h)}" preserveAspectRatio="${par}" clip-path="url(#${cid})"/>`;
       if (sw > 0) out += `<path d="${nodeParts({ ...n, type: 'rect' })[0].d}" fill="none" stroke="${strokeColor}" stroke-width="${sw}"/>`;
     }
+    if (flip) out += '</g>';
     if (n.type === 'instance') out += this.instance(n, depth);
     if (hasText(n)) out += this.text(n, def);
     out += '</g>';

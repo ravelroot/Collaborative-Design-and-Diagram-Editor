@@ -25,6 +25,7 @@ const HOW_TO = {
   connector: 'Arraste de uma forma até outra: a linha fica presa nas duas e desvia das outras formas.',
   hand: 'Arraste para passear pela tela. Atalho rápido: segure Espaço.',
   comment: 'Clique para abrir uma conversa naquele ponto.',
+  eyedropper: 'Clique em qualquer ponto para pegar a cor e aplicar no que estiver selecionado.',
 };
 
 const toolButton = (id) => document.querySelector(`#tools .tool[data-tool="${id}"]`);
@@ -58,10 +59,10 @@ function steps() {
     },
     {
       title: 'Navegar e comentar',
-      text: 'A roda do mouse rola a tela e Ctrl + roda (ou a pinça) aproxima no cursor; Shift+1 mostra tudo. O minimapa leva a qualquer ponto. Errou? Ctrl+Z desfaz e Ctrl+Shift+Z refaz.',
-      tools: ['hand', 'comment'],
-      anchor: () => [toolButton('hand'), toolButton('comment')],
-      targets: () => [toolButton('hand'), toolButton('comment'), q('#zoomBtn'), q('#minimap')],
+      text: 'A roda do mouse rola a tela e Ctrl + roda (ou a pinça) aproxima no cursor; Shift+1 mostra tudo. O minimapa leva a qualquer ponto. Ctrl+K abre as ações rápidas para achar qualquer comando. Errou? Ctrl+Z desfaz e Ctrl+Shift+Z refaz.',
+      tools: ['hand', 'comment', 'eyedropper'],
+      anchor: () => [toolButton('hand'), toolButton('comment'), toolButton('eyedropper')],
+      targets: () => [toolButton('hand'), toolButton('comment'), toolButton('eyedropper'), q('#zoomBtn'), q('#minimap')],
     },
     {
       title: 'Colaborar e apresentar',
