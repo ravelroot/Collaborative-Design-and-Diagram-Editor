@@ -21,7 +21,7 @@
 
 > **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL, as regras de integridade, retenção e segurança dos dados e o que a 1.3.0 e a 1.4.0 mudam (nada no esquema; propriedades novas dentro do documento, métricas e o caminho dos pedidos à IA, que não grava nada no banco).
 
-> **Versão 1.4.0 (Atual):** chegou a área **Criar com IA** (aba **IA** à esquerda, Ctrl+Alt+I): peça em português o que quer criar, como *“diagrama de classes UML completo de um sistema bancário”*, e o Grafo desenha o diagrama inteiro no quadro, com classes, atributos, métodos, heranças, composições e multiplicidades, ou entidades com PK e FK, fluxogramas, casos de uso, arquiteturas, organogramas e até telas. Funciona com **Anthropic (Claude), OpenAI, Google Gemini, OpenRouter, Ollama e LM Studio** nos três modos: no **navegador e no GitHub Pages** cada pessoa usa a própria chave, que fica só no navegador e vai direto para o provedor; no **servidor** a chave fica no `.env`; no **app desktop** a chave fica cifrada pelo Windows. Nada muda no banco nem no formato `.grafo`. Detalhes em [Criar com IA (1.4.0)](#criar-com-ia-140).
+> **Versão 1.4.1 (Atual):** corrige o foco das janelas (um campo digitado logo na abertura podia receber o texto de outro) e deixa os testes automáticos mais confiáveis. A versão 1.4.0 trouxe a área **Criar com IA** (aba **IA** à esquerda, Ctrl+Alt+I): peça em português o que quer criar, como *“diagrama de classes UML completo de um sistema bancário”*, e o Grafo desenha o diagrama inteiro no quadro, com classes, atributos, métodos, heranças, composições e multiplicidades, ou entidades com PK e FK, fluxogramas, casos de uso, arquiteturas, organogramas e até telas. Funciona com **Anthropic (Claude), OpenAI, Google Gemini, OpenRouter, Ollama e LM Studio** nos três modos: no **navegador e no GitHub Pages** cada pessoa usa a própria chave, que fica só no navegador e vai direto para o provedor; no **servidor** a chave fica no `.env`; no **app desktop** a chave fica cifrada pelo Windows. Nada muda no banco nem no formato `.grafo`. Detalhes em [Criar com IA (1.4.0)](#criar-com-ia-140).
 
 > **Versão 1.3.0 (Anterior):** chegou o **diagrama a partir de texto** (Ctrl+Alt+M): escreva um fluxograma em **Mermaid** ou uma **lista com recuo** e o Grafo desenha as formas, os conectores, os rótulos e os grupos já organizados, e **Copiar como Mermaid** faz o caminho de volta. Também chegaram **localizar e substituir** em todas as páginas (Ctrl+F / Ctrl+H), **tabelas** (Shift+T ou a partir de um CSV), **grade de encaixe** configurável, **espaço exato entre itens**, **estilo rápido** com oito combinações de cor, **conectar em sequência** (Ctrl+Alt+X), **paletas de cores** da interface, o **indicador de salvamento** na barra de status, atalhos na **página vazia** e a rota **`/api/metrics`** no servidor. Corrigidos: o Tab não cobre mais o canvas com a camada de acessibilidade do PixiJS e os botões do painel Design mostram o estado novo na hora. Nada muda no banco nem no formato `.grafo`. Detalhes em [Diagrama a partir de texto, busca e tabelas (1.3.0)](#diagrama-a-partir-de-texto-busca-e-tabelas-130).
 
@@ -596,6 +596,7 @@ Diagramas, campos, restrições, índices e consultas prontas estão no [`Banco-
 |---|---|
 | `npm ci` | Instala as dependências do editor |
 | `npm test` | Testes do núcleo WASM e do editor (Node Test Runner) |
+| `npm run test:engine` | Só os testes do núcleo WASM |
 | `npm run build` | Empacota o editor em `web/dist` |
 | `npm run portable` | Gera o `Grafo.html` |
 | `npm run desktop` | Gera o `Grafo.html` e o `Grafo.exe` (precisa do Go) |
@@ -610,7 +611,7 @@ Diagramas, campos, restrições, índices e consultas prontas estão no [`Banco-
 | App desktop | Build reproduzível do `Grafo.exe` (gerado de novo e comparado byte a byte), `go vet` e `gofmt` no código Go | Idêntico; 0 problemas |
 | Servidor (31 testes) | Proxy de IA com provedor simulado (chave injetada, modelo forçado, tokens limitados, 400, 429 e 503), configuração dos provedores, Métricas do Prometheus e token exigido nelas, protocolo, UUID, limites, limite de taxa, convergência, reconexão depois de 25 updates perdidos, mensagens malformadas, 50 clientes numa sala e 20 salas em paralelo | 50 clientes convergem em 80 ms; 1.000 updates em 20 salas em 288 ms |
 
-O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten, confere se o `Grafo.html` está em dia com o código, gera o `Grafo.exe` de novo e compara byte a byte com o do repositório e constrói a imagem Docker.
+O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten, confere se o `Grafo.html` está em dia com o código, gera o `Grafo.exe` de novo e compara byte a byte com o do repositório e constrói a imagem Docker. Quando um teste falha, o erro aparece como anotação no próprio commit.
 
 ## Qualidade e segurança
 
@@ -641,6 +642,7 @@ server/                     servidor em Rust (src/ com o proxy de IA em ai.rs, m
 scripts/                    build do editor (esbuild), do Grafo.html e do Grafo.exe e servidor estático
 tests/js/                   testes do núcleo e do editor
 tests/e2e/                  testes ponta a ponta (Playwright)
+tests/github-reporter.mjs   falhas dos testes como anotações no GitHub Actions
 docs/                       manuais em PDF e imagens do README
 .github/workflows/          CI e publicação no GitHub Pages
 Dockerfile, docker-compose.yml, .env.example

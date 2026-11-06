@@ -15,7 +15,10 @@ const TYPE_ICON = { frame: 'frame', section: 'section', group: 'group', rect: 'r
 const TYPE_NAME = { frame: 'Frame', section: 'Seção', group: 'Grupo', rect: 'Retângulo', ellipse: 'Elipse', polygon: 'Polígono', star: 'Estrela', path: 'Vetor', text: 'Texto', image: 'Imagem', sticky: 'Nota adesiva', shape: 'Forma', connector: 'Conector', component: 'Componente', instance: 'Instância', boolean: 'Booleana' };
 const FRAME_PRESETS = [['Celular', 390, 844], ['Celular grande', 430, 932], ['Tablet', 834, 1194], ['Notebook', 1280, 832], ['Desktop', 1440, 1024], ['Slide 16:9', 1920, 1080], ['A4', 595, 842], ['Post quadrado', 1080, 1080], ['Story', 1080, 1920]];
 const PALETTE = ['#5D1C16', '#A3B4BE', '#5C4034', '#E6DDCE', '#7A6E46', '#D6BDB8', '#F6E4A6', '#2B1D17', '#FFFFFF', '#000000'];
-const APP_VERSION = typeof GRAFO_VERSION !== 'undefined' ? GRAFO_VERSION : '1.4.0';
+const APP_VERSION = typeof GRAFO_VERSION !== 'undefined' ? GRAFO_VERSION : '1.4.1';
+const focusSoon = (scope, target, ms = 30) => setTimeout(() => {
+  if (scope.isConnected && !scope.contains(document.activeElement)) target.focus();
+}, ms);
 const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const AI_EXAMPLES = [
   'Diagrama de classes UML completo de um sistema bancário, com contas, clientes, transações, cartões e agências',
@@ -1994,7 +1997,7 @@ export class UI {
     back.append(m);
     document.body.append(back);
     const first = m.querySelector('input, textarea, select');
-    if (first) setTimeout(() => first.focus(), 30);
+    if (first) focusSoon(m, first);
     return { close, body };
   }
 
@@ -2339,7 +2342,7 @@ export class UI {
     });
     document.body.append(back);
     show(start);
-    setTimeout(() => search.focus(), 30);
+    focusSoon(box, search);
     return { close };
   }
 
@@ -2839,7 +2842,7 @@ export class UI {
       if (!document.body.contains(panel)) return (this.findRefresh = null);
       if (q.value) search(true);
     };
-    setTimeout(() => (replace ? r : q).focus(), 20);
+    focusSoon(panel, replace ? r : q, 20);
     return panel;
   }
 

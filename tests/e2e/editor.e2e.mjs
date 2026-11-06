@@ -618,6 +618,9 @@ test('tabela, grade de encaixe, espaço entre itens e página vazia', async () =
   await page.waitForSelector('.empty-hint.show');
   await page.keyboard.press('Shift+T');
   await page.waitForSelector('.modal');
+  await page.locator('.modal input[aria-label="Número de colunas"]').focus();
+  await page.waitForTimeout(120);
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'Número de colunas');
   const rows = page.locator('.modal input[aria-label="Número de linhas"]');
   await rows.fill('3');
   await rows.press('Enter');

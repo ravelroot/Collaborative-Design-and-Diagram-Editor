@@ -1,6 +1,6 @@
 {
   "name": "grafo",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
@@ -8,8 +8,9 @@
     "build": "node scripts/build-web.mjs",
     "portable": "node scripts/build-web.mjs && node scripts/build-portable.mjs",
     "serve": "node scripts/serve.mjs",
-    "test": "node --test --test-force-exit tests/js/*.test.js",
-    "test:e2e": "node --test --test-force-exit --test-concurrency=1 tests/e2e/*.e2e.mjs",
+    "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./tests/github-reporter.mjs --test-reporter-destination=stdout --test-timeout=60000 tests/js/*.test.js",
+    "test:engine": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./tests/github-reporter.mjs --test-reporter-destination=stdout --test-timeout=60000 tests/js/engine.test.js",
+    "test:e2e": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./tests/github-reporter.mjs --test-reporter-destination=stdout --test-concurrency=1 --test-timeout=120000 tests/e2e/*.e2e.mjs",
     "desktop": "npm run portable && node scripts/build-desktop.mjs"
   },
   "dependencies": {

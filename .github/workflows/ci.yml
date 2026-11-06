@@ -55,7 +55,7 @@ jobs:
       - name: Compilar com Emscripten
         run: bash engine/build.sh
       - name: Testar o WebAssembly compilado
-        run: node --test --test-force-exit tests/js/engine.test.js
+        run: npm run test:engine
 
   server:
     name: Servidor (Rust)

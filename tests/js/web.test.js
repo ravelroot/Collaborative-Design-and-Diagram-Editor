@@ -1,4 +1,4 @@
-import { test, describe } from 'node:test';
+import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import * as Y from 'yjs';
@@ -23,9 +23,13 @@ const rng = (seed) => {
   };
 };
 
+const stores = [];
+after(() => stores.forEach((s) => s.destroy()));
+
 const newStore = () => {
   const s = new Store('00000000-0000-4000-8000-' + String(Math.floor(Math.random() * 1e12)).padStart(12, '0'));
   s.ensureDefaults();
+  stores.push(s);
   return s;
 };
 
