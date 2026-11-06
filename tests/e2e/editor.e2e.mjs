@@ -605,6 +605,25 @@ test('localizar e substituir entre páginas, com desfazer', async () => {
   assert.ok(undone);
 });
 
+test('cada comando vira um passo próprio de desfazer, mesmo logo após outra alteração', async () => {
+  const texts = await page.evaluate(() => {
+    const g = window.grafo;
+    const st = g.store;
+    const ed = g.editor;
+    const p = st.addPage('Desfazer');
+    let id;
+    st.transact(() => {
+      id = st.add({ type: 'shape', shape: 'process', page: p, parent: null, x: 0, y: 0, w: 140, h: 70, text: 'Avisar cliente' });
+    });
+    ed.setPage(p);
+    ed.replaceText([id], 'cliente', 'Freguês', {});
+    const replaced = st.get(id)?.text;
+    st.undo.undo();
+    return [replaced, st.get(id)?.text];
+  });
+  assert.deepEqual(texts, ['Avisar Freguês', 'Avisar cliente']);
+});
+
 test('tabela, grade de encaixe, espaço entre itens e página vazia', async () => {
   await page.evaluate(() => {
     const g = window.grafo;

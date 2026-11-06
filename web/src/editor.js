@@ -373,6 +373,7 @@ export class Editor {
   commit(fn) {
     let r;
     if (!this.captureOpen) {
+      this.store.undo.stopCapturing();
       this.pendingBefore = [...this.sel];
       this.captureOpen = true;
     }

@@ -7,6 +7,7 @@ Todas as mudanças importantes do Grafo ficam registradas aqui.
 ### Corrigido
 
 - Janelas como **Inserir tabela**, **Novo quadro** e **Localizar** não tiram mais o foco do campo em que a pessoa já clicou: antes, um campo digitado logo na abertura podia receber o texto do outro (por exemplo, as colunas iam para as linhas).
+- **Desfazer** depois de **Localizar e substituir** (ou de qualquer comando feito logo após outra alteração) volta só aquele comando: antes, uma alteração feita menos de 0,4 s antes era desfeita junto e podia apagar as camadas recém-criadas.
 - Os testes automáticos não encerram mais antes da hora: a opção `--test-force-exit` fazia o Node pular testes sem acusar erro. Agora todos rodam sempre, cada teste tem tempo-limite e, no GitHub Actions, as falhas aparecem como anotações no próprio commit.
 
 ## [1.4.0] - 2026-11-06
