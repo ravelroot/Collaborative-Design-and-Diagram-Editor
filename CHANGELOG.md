@@ -2,6 +2,25 @@
 
 Todas as mudanças importantes do Grafo ficam registradas aqui.
 
+## [1.4.0] - 2026-11-06
+
+### Adicionado
+
+- **Criar com IA** (aba **IA** no painel da esquerda, botão ✦ no topo, Arquivo → Criar com IA…, Ctrl+Alt+I): descreva em português o que quer criar e o Grafo desenha o diagrama completo no quadro, já organizado e selecionado, com **Gerar outra versão**, **Desfazer**, exemplos prontos e pedidos recentes.
+- A IA conhece as 107 formas e monta classes e interfaces UML com atributos, métodos, herança, realização, composição, agregação e multiplicidades; entidades com PK e FK e ligações de entidade-relacionamento; fluxogramas, BPMN, casos de uso, arquitetura, redes, organogramas e telas com layout manual.
+- Provedores: **Anthropic (Claude), OpenAI, Google Gemini, OpenRouter, Ollama e LM Studio**, com modelo configurável.
+- No navegador, no GitHub Pages e no `Grafo.html`, cada pessoa usa a própria chave, guardada só no navegador e enviada direto ao provedor, sem servidor.
+- No app desktop, a chave fica cifrada pelo Windows (DPAPI) em `%LOCALAPPDATA%\Grafo\ai.dat` e o próprio app faz o pedido.
+- No servidor, `GET /api/ai/status` e `POST /api/ai/request` com a chave no `.env` (`GRAFO_AI_PROVIDER`, `GRAFO_AI_API_KEY`, `GRAFO_AI_MODEL`, `GRAFO_AI_BASE_URL`, `GRAFO_AI_MAX_TOKENS`, `GRAFO_AI_RATE_LIMIT`), modelo e limite de tokens impostos pelo servidor, limite de pedidos por hora por IP e as métricas `grafo_ai_requests_total`, `grafo_ai_failures_total` e `grafo_ai_enabled`.
+- Testes de unidade, ponta a ponta (com provedor simulado) e do servidor (com provedor simulado) para a área de IA.
+
+### Alterado
+
+- A Content-Security-Policy do `Grafo.html`, do servidor e do `npm run serve` libera conexões só para os provedores de IA conhecidos.
+- Os nomes das camadas de classes com estereótipo (`«interface»`, `«abstract»`) agora são o nome da classe.
+- O `Grafo.exe` passou a ter cerca de 8 MB por causa do cliente HTTPS da IA.
+- Tutorial rápido, manuais em PDF e README atualizados para a versão 1.4.0.
+
 ## [1.3.0] - 2026-11-06
 
 ### Adicionado

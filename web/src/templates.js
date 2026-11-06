@@ -154,15 +154,20 @@ const layered = (nodes, edges, dir, gx, gy) => {
   });
 };
 
-const graph = (nodeSpec, edgeSpec, o = {}) => (b) => {
-  const nodes = parseNodes(nodeSpec).map((n) => ({ ...n, ...sizeOf(n, o) }));
-  const edges = parseEdges(edgeSpec);
+const graph = (nodeSpec, edgeSpec, o = {}) => (b) => placeGraph(b, parseNodes(nodeSpec), parseEdges(edgeSpec), o);
+
+export const diagramBoard = (nodes, edges, o = {}) => buildBoard((b) => placeGraph(b, nodes, edges, o));
+
+export const PALETTE_COLORS = C;
+
+const placeGraph = (b, list, edges, o = {}) => {
+  const nodes = list.map((n) => ({ ...n, ...(n.manual ? { w: n.w, h: n.h } : sizeOf(n, o)) }));
   if (o.layout) o.layout(nodes, edges);
   else layered(nodes, edges, o.dir || 'down', o.gx ?? 70, o.gy ?? 70);
   const ox = o.x || 0;
   const oy = o.y || 0;
   for (const n of nodes) {
-    const st = { ...(STYLE[n.shape] || {}), ...(o.style?.[n.key] || {}) };
+    const st = { ...(STYLE[n.shape] || {}), ...(o.style?.[n.key] || {}), ...(n.fill ? { fill: n.fill, textColor: undefined } : {}) };
     if (st.fill) st.textColor = st.textColor || (DARK.has(st.fill) ? C.light : undefined);
     b.node(n.shape, n.text, n.x + ox, n.y + oy, n.w, n.h, { key: n.key, ...st, branch: o.aula ? true : undefined });
   }
@@ -668,9 +673,9 @@ export const layoutTree = (nodes, edges, dir) => {
   return new Map(items.map((it) => [it.key, { x: it.x, y: it.y }]));
 };
 
-const NAME_OF = (it) => String(it.text || '').split('\n').find((l) => l.trim() && !/^«/.test(l.trim())) || (SHAPES[it.shape] || SHAPES.rect).name;
+const NAME_OF = (it) => String(it.text || '').split('\n').map((l) => l.replace(/^\s*«[^»]*»\s*/, '').trim()).find(Boolean) || (SHAPES[it.shape] || SHAPES.rect).name;
 
-export const applyBoard = (store, page, items, { measure } = {}) => {
+export const applyBoard = (store, page, items, { measure, z0 = 0 } = {}) => {
   const shapes = items.filter((it) => it.kind !== 'edge');
   if (!shapes.length) return [];
   const x0 = Math.min(...shapes.map((it) => it.x));
@@ -678,7 +683,7 @@ export const applyBoard = (store, page, items, { measure } = {}) => {
   const ids = new Map();
   const out = [];
   const containers = [];
-  let z = 1;
+  let z = z0 + 1;
   for (const it of items) {
     if (it.kind === 'edge') continue;
     const x = Math.round(it.x - x0);

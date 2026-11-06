@@ -17,13 +17,13 @@
 
 ---
 
-> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as três maneiras de rodar (app desktop, servidor completo e dois cliques no HTML), o tutorial rápido, a galeria **Novo quadro** com os modelos, os padrões de projeto e a aula, a tela, cada ferramenta e atalho (inclusive ações rápidas, medição, conta-gotas e guias), frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes, a solução de problemas e as novidades da 1.3.0 (diagrama a partir de texto, localizar e substituir, tabelas, grade de encaixe, estilo rápido e métricas do servidor), passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
+> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as três maneiras de rodar (app desktop, servidor completo e dois cliques no HTML), o tutorial rápido, a galeria **Novo quadro** com os modelos, os padrões de projeto e a aula, a tela, cada ferramenta e atalho (inclusive ações rápidas, medição, conta-gotas e guias), frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes, a solução de problemas as novidades da 1.3.0 (diagrama a partir de texto, localizar e substituir, tabelas, grade de encaixe, estilo rápido e métricas do servidor) e a área Criar com IA da 1.4.0 (provedores, chaves em cada modo, segurança e limites), passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
 
-> **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL, as regras de integridade, retenção e segurança dos dados e o que a 1.3.0 muda (nada no esquema; só propriedades novas dentro do documento e as métricas).
+> **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL, as regras de integridade, retenção e segurança dos dados e o que a 1.3.0 e a 1.4.0 mudam (nada no esquema; propriedades novas dentro do documento, métricas e o caminho dos pedidos à IA, que não grava nada no banco).
 
-> **Versão 1.3.0 (Atual):** chegou o **diagrama a partir de texto** (Ctrl+Alt+M): escreva um fluxograma em **Mermaid** ou uma **lista com recuo** e o Grafo desenha as formas, os conectores, os rótulos e os grupos já organizados, e **Copiar como Mermaid** faz o caminho de volta. Também chegaram **localizar e substituir** em todas as páginas (Ctrl+F / Ctrl+H), **tabelas** (Shift+T ou a partir de um CSV), **grade de encaixe** configurável, **espaço exato entre itens**, **estilo rápido** com oito combinações de cor, **conectar em sequência** (Ctrl+Alt+X), **paletas de cores** da interface, o **indicador de salvamento** na barra de status, atalhos na **página vazia** e a rota **`/api/metrics`** no servidor. Corrigidos: o Tab não cobre mais o canvas com a camada de acessibilidade do PixiJS e os botões do painel Design mostram o estado novo na hora. Nada muda no banco nem no formato `.grafo`. Detalhes em [Diagrama a partir de texto, busca e tabelas (1.3.0)](#diagrama-a-partir-de-texto-busca-e-tabelas-130).
+> **Versão 1.4.0 (Atual):** chegou a área **Criar com IA** (aba **IA** à esquerda, Ctrl+Alt+I): peça em português o que quer criar, como *“diagrama de classes UML completo de um sistema bancário”*, e o Grafo desenha o diagrama inteiro no quadro, com classes, atributos, métodos, heranças, composições e multiplicidades, ou entidades com PK e FK, fluxogramas, casos de uso, arquiteturas, organogramas e até telas. Funciona com **Anthropic (Claude), OpenAI, Google Gemini, OpenRouter, Ollama e LM Studio** nos três modos: no **navegador e no GitHub Pages** cada pessoa usa a própria chave, que fica só no navegador e vai direto para o provedor; no **servidor** a chave fica no `.env`; no **app desktop** a chave fica cifrada pelo Windows. Nada muda no banco nem no formato `.grafo`. Detalhes em [Criar com IA (1.4.0)](#criar-com-ia-140).
 
-> **Versão 1.2.0 (Anterior):** chegou o **Novo quadro** (Ctrl+Alt+N): escolha um tipo de diagrama e o quadro abre já montado para editar, entre **63 modelos** em dez categorias (UML e SysML, processos, arquitetura, dados, infraestrutura, segurança, testes, UX e produto, gestão e análise) e **46 padrões de projeto** que abrem como diagrama ou como aula. No modo **Aula** você começa por uma raiz no topo e desce pelas ramificações, abre as ideias para os lados ou conta a história no sentido inverso; Tab cria uma ramificação e Enter uma ideia irmã. Se preferir, comece em branco. Também chegaram ferramentas de edição profissional: **ações rápidas** (Ctrl+K) para achar qualquer comando, ferramenta, página, forma ou camada pelo nome; **medição de distâncias** com Alt; **conta-gotas** (I); **guias** puxadas das réguas, com encaixe; **copiar e colar propriedades**; **organizar em grade**; **renomear em lote** (F2); **travar proporção**; **ajustar frame ao conteúdo**; **maiúsculas e minúsculas** no texto; **copiar como PNG**; busca no painel **Camadas**; Tab para andar pelas camadas e Ctrl+D que repete o último deslocamento. O **espelhar** agora inverte de verdade formas, imagens e seleções inteiras. Nada muda na API nem no banco; arquivos `.grafo` antigos abrem normalmente. Detalhes em [Novo quadro: modelos e aula (1.2.0)](#novo-quadro-modelos-e-aula-120) e [Ferramentas profissionais (1.2.0)](#ferramentas-profissionais-120).
+> **Versão 1.3.0 (Anterior):** chegou o **diagrama a partir de texto** (Ctrl+Alt+M): escreva um fluxograma em **Mermaid** ou uma **lista com recuo** e o Grafo desenha as formas, os conectores, os rótulos e os grupos já organizados, e **Copiar como Mermaid** faz o caminho de volta. Também chegaram **localizar e substituir** em todas as páginas (Ctrl+F / Ctrl+H), **tabelas** (Shift+T ou a partir de um CSV), **grade de encaixe** configurável, **espaço exato entre itens**, **estilo rápido** com oito combinações de cor, **conectar em sequência** (Ctrl+Alt+X), **paletas de cores** da interface, o **indicador de salvamento** na barra de status, atalhos na **página vazia** e a rota **`/api/metrics`** no servidor. Corrigidos: o Tab não cobre mais o canvas com a camada de acessibilidade do PixiJS e os botões do painel Design mostram o estado novo na hora. Nada muda no banco nem no formato `.grafo`. Detalhes em [Diagrama a partir de texto, busca e tabelas (1.3.0)](#diagrama-a-partir-de-texto-busca-e-tabelas-130).
 
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com duas telas de celular, um componente de botão e as notas, com páginas e camadas à esquerda e o painel Design à direita">
@@ -37,6 +37,7 @@
 - **Componentes e estilos:** transforme qualquer seleção em componente e crie instâncias que acompanham o principal, com **substituições** de texto e cor, restauração e desanexar. Estilos de cor e de texto com nome: editar o estilo muda todos os objetos que o usam.
 - **Aparência:** cor sólida com opacidade, degradê linear, imagem (preencher, ajustar ou esticar), contorno dentro, no centro ou fora, contínuo, tracejado ou pontilhado, sombra projetada, desfoque, opacidade e **16 modos de mistura**. Texto com seis famílias, peso, tamanho, altura de linha, espaçamento, alinhamento horizontal e vertical, itálico e sublinhado.
 - **Operações booleanas:** união, subtração, interseção e exclusão, calculadas no núcleo C++ e editáveis depois (as formas originais continuam dentro).
+- **Criar com IA:** descreva o diagrama em português e a IA monta tudo no quadro (UML, entidade-relacionamento, fluxogramas, BPMN, casos de uso, arquitetura, redes, organogramas e telas), com Claude, GPT, Gemini, OpenRouter ou um modelo local, sem precisar de servidor.
 - **Diagrama a partir de texto:** escreva um fluxograma em Mermaid (`flowchart TD`, `A[Início] --> B{Decisão}`, rótulos, setas tracejadas e grossas, `&` e `subgraph`) ou uma lista com recuo e o quadro aparece montado e organizado; **Copiar como Mermaid** exporta a seleção ou a página de volta para texto.
 - **Diagramas:** **107 formas** em oito bibliotecas (básicas, fluxograma, UML, entidade-relacionamento, BPMN, rede e nuvem, organograma, wireframe e interface). Conectores **retos, ortogonais ou curvos** presos aos pontos de conexão, que desviam das outras formas pelo roteador A* do núcleo, com rótulo e dez tipos de ponta (inclusive pé-de-galinha do ER). Passe o mouse numa forma e puxe um ponto para ligar ou clonar.
 - **Contêineres e layout automático:** piscinas, raias, limites de rede e equipes levam junto as formas de dentro. **Organizar → Layout automático** reorganiza o diagrama em camadas (Sugiyama) e anima as formas até o lugar.
@@ -51,7 +52,7 @@
 - **Tutorial rápido:** na primeira vez que o Grafo abre, ele pergunta se você quer um tour de nove passos pelas ferramentas, painéis, navegação, colaboração e salvar. Dá para pular, e ele fica em **Ajuda → Tutorial rápido**.
 - **Leve e fluido:** a barra de status mostra quando o arquivo foi salvo, a página vazia oferece os primeiros passos e a tela só é redesenhada quando algo muda, zoom de 2% a 25.600% no ponto do cursor (roda, pinça ou teclado, com animação suave), réguas, minimapa, grade de pixels, temas claro e escuro e interface que some com Ctrl+\\.
 - **Paletas de cores:** o botão de paleta no topo troca a interface entre a paleta original do Grafo e as do Bento, do Sonda e do Nexo, todas com versão clara e escura. A escolha fica salva e volta na próxima vez. Detalhes em [Paletas de cores](#paletas-de-cores).
-- **Seguro por padrão:** Content-Security-Policy restrita sem `eval`, nenhum dado do usuário entra como HTML, SVG importado é limpo, o servidor limita tamanho e taxa, confere UUIDs e tipos de imagem pelos bytes e degrada sem cair quando falta um serviço. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
+- **Seguro por padrão:** Content-Security-Policy restrita sem `eval` e com rede só para os provedores de IA conhecidos, chaves de IA que nunca passam por um servidor do Grafo sem você querer, nenhum dado do usuário entra como HTML, SVG importado é limpo, o servidor limita tamanho e taxa, confere UUIDs e tipos de imagem pelos bytes e degrada sem cair quando falta um serviço. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
 
 <p align="center">
   <img src="docs/images/tela-diagrama.png" width="49%" alt="Fluxograma de pedidos numa piscina, com decisão, documento, banco de dados, conectores ortogonais com rótulos e duas entidades ligadas por pé-de-galinha">
@@ -75,6 +76,41 @@ O botão com o ícone de paleta, no canto superior direito ao lado do botão de 
 | **Nexo** | paleta original do Nexo | papel `#E8E8E8`, pó `#D9D1CE`, pedra `#BAB7B5`, malva `#AB9D9D`, tinta `#000000` | fundo `#000000`, superfície `#121111`, malva `#AB9D9D` |
 
 A escolha fica salva neste navegador (ou no app desktop) e é aplicada antes de a tela aparecer. As paletas são variáveis CSS em `:root[data-palette]` no [`web/css/grafo.css`](web/css/grafo.css), a lista do menu fica em `PALETTES` no [`web/src/util.js`](web/src/util.js), e o canvas lê o fundo e as cores de seleção dessas mesmas variáveis.
+
+## Criar com IA (1.4.0)
+
+<p align="center">
+  <img src="docs/images/tela-ia.png" width="49%" alt="Aba IA com o pedido de um diagrama de classes UML de um sistema bancário e o diagrama gerado no quadro, com doze classes, heranças, composições e multiplicidades">
+  <img src="docs/images/tela-ia-er.png" width="49%" alt="Modelo entidade-relacionamento de uma loja virtual gerado pela IA, com oito tabelas, chaves primárias e estrangeiras e ligações pé-de-galinha">
+</p>
+
+Abra a aba **IA** no painel da esquerda (ou o botão ✦ no topo, ou **Arquivo → Criar com IA…**, ou Ctrl+Alt+I), escreva o que quer criar e clique em **Gerar no quadro** (Ctrl+Enter). O diagrama entra no centro da tela, já organizado e selecionado, e um Ctrl+Z (ou **Desfazer**) tira tudo de uma vez. **Gerar outra versão** pede de novo, os **pedidos recentes** ficam guardados e há exemplos prontos para começar.
+
+| O que pedir | O que a IA monta |
+|---|---|
+| “Diagrama de classes UML completo de um sistema bancário” | Classes e interfaces com atributos (visibilidade e tipo), métodos (parâmetros e retorno), herança, realização, composição, agregação, associação com multiplicidades |
+| “Modelo entidade-relacionamento de uma loja virtual” | Entidades com `PK`, `FK` e tipos, ligadas por um-para-um, um-para-muitos, zero-para-muitos ou muitos-para-muitos (pé-de-galinha) |
+| “Fluxograma de aprovação de crédito” | Início e fim, etapas, decisões com rótulos sim e não, documentos e bancos de dados |
+| “Arquitetura em nuvem de um app de delivery” | Gateway, serviços, filas, bancos e grupos por camada ou rede |
+| “Diagrama de casos de uso de um sistema de biblioteca” | Atores, casos de uso e a fronteira do sistema |
+| “Tela de login de um app de celular” | Tela de celular com campos, botões e textos posicionados (layout manual) |
+
+| Onde o Grafo roda | Onde fica a chave | Como configurar |
+|---|---|---|
+| Navegador, GitHub Pages e `Grafo.html` | Só no seu navegador: nesta sessão ou, se marcar **Lembrar neste navegador**, guardada nele | Seção **Conexão com a IA** da aba IA: provedor, modelo e chave. O pedido vai direto do navegador para o provedor, sem passar por nenhum servidor do Grafo |
+| App desktop (`Grafo.exe`) | Cifrada pelo Windows (proteção de dados do usuário) em `%LOCALAPPDATA%\Grafo\ai.dat` | Mesma seção; o app desktop faz o pedido e a página nunca recebe a chave de volta |
+| Servidor completo | No `.env` do servidor (`GRAFO_AI_*`) | Veja [Configuração](#configuração); a aba IA mostra o provedor e o modelo e a chave nunca chega ao navegador. Sem IA no servidor, cada pessoa pode usar a própria chave como no navegador |
+
+| Provedor | Modelo sugerido (pode trocar) | Chave |
+|---|---|---|
+| Anthropic (Claude) | `claude-sonnet-5-5` | Sim |
+| OpenAI | `gpt-4.1-mini` | Sim |
+| Google Gemini | `gemini-2.5-flash` | Sim |
+| OpenRouter | `openrouter/auto` | Sim |
+| Ollama (neste computador) | `llama3.1` | Não; libere o Grafo com `OLLAMA_ORIGINS="*"` |
+| LM Studio (neste computador) | O modelo carregado | Não |
+
+Por dentro, a IA recebe o catálogo das 107 formas e devolve o diagrama por *tool calling* (ou JSON, nos modelos locais), que o Grafo confere antes de desenhar: só formas e ligações conhecidas, até 80 formas e 160 conexões, textos limitados e nada interpretado como HTML. Cada pedido usa créditos da sua conta no provedor.
 
 ## Diagrama a partir de texto, busca e tabelas (1.3.0)
 
@@ -280,6 +316,7 @@ Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que f
 | Réguas / minimapa / grade / contornos | Shift+R / Shift+M / Ctrl+' / Ctrl+Shift+O |
 | Guias / recolher camadas | Arrastar da régua e Shift+G / Alt+L |
 | Novo quadro (modelos e aula) | Ctrl+Alt+N |
+| Criar com IA / gerar | Ctrl+Alt+I / Ctrl+Enter |
 | Aula: ramificação / ideia irmã | Tab / Enter |
 | Salvar cópia .grafo / abrir / salvar versão | Ctrl+S / Ctrl+O / Ctrl+Alt+S |
 | Exportar / apresentar | Ctrl+Shift+E / Ctrl+Alt+Enter |
@@ -289,7 +326,7 @@ Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que f
 
 | Menu | Comandos |
 |---|---|
-| Arquivo | Novo quadro (modelos e aula), diagrama a partir de texto, novo arquivo em branco, abrir `.grafo`, arquivos recentes, salvar cópia `.grafo`, salvar versão, histórico de versões, importar imagem ou SVG, importar CSV, exportar, copiar diagrama como Mermaid |
+| Arquivo | Novo quadro (modelos e aula), criar com IA, diagrama a partir de texto, novo arquivo em branco, abrir `.grafo`, arquivos recentes, salvar cópia `.grafo`, salvar versão, histórico de versões, importar imagem ou SVG, importar CSV, exportar, copiar diagrama como Mermaid |
 | Editar | Desfazer, refazer, copiar, recortar, colar, duplicar, excluir, copiar e colar propriedades, selecionar tudo, próxima e anterior camada, selecionar mesma cor e mesmo tipo, localizar e substituir, ações rápidas |
 | Exibir | Réguas, grade de pixels, minimapa, contornos, guias, remover guias da página, grade de encaixe, encaixe inteligente, encaixe em pixels, links de protótipo, render WebGPU, zoom, tema e ocultar interface |
 | Objeto | Agrupar, desagrupar, frame da seleção, auto layout, ajustar ao conteúdo, renomear, inserir tabela, criar componente, desanexar instância, booleanas, espelhar, trocar preenchimento e contorno, travar proporção, bloquear, ocultar |
@@ -386,8 +423,9 @@ Baixe o [`Grafo.exe`](Grafo.exe) e dê dois cliques. O Grafo abre **maximizado**
 - Na primeira abertura, o Grafo também oferece um **tutorial rápido** (dá para pular; ele fica em **Ajuda → Tutorial rápido**).
 - Os arquivos ficam em `%LOCALAPPDATA%\Grafo` e continuam lá na próxima vez, mesmo trocando o `.exe` por uma versão nova. A barra de status mostra **App desktop**.
 - Ctrl+S, **Salvar cópia `.grafo`** e **Exportar** abrem a janela **Salvar como** do Windows.
+- A chave da IA fica cifrada pelo Windows em `%LOCALAPPDATA%\Grafo\ai.dat` e só o app a usa para falar com o provedor.
 - Usa o Microsoft Edge WebView2, que já vem no Windows 10 e 11. Se faltar, o Grafo avisa e oferece abrir a página de download da Microsoft.
-- Por dentro, é um programa pequeno em Go ([`desktop/`](desktop/), cerca de 4 MB com o editor) com o `Grafo.html` embutido: o editor, os testes e a segurança são os mesmos do arquivo único.
+- Por dentro, é um programa pequeno em Go ([`desktop/`](desktop/), cerca de 8 MB com o editor) com o `Grafo.html` embutido: o editor, os testes e a segurança são os mesmos do arquivo único.
 
 Para gerar o `Grafo.exe` a partir do código (precisa do Node.js 22 e do Go; a versão exata fica em `desktop/go.mod`):
 
@@ -434,7 +472,7 @@ Abre em `http://localhost:5173`, salva no navegador e as abas do mesmo arquivo c
 
 ### 3. Arquivo único (Grafo.html)
 
-Baixe o [`Grafo.html`](Grafo.html) e abra com dois cliques. O editor inteiro, com o núcleo WebAssembly embutido, abre sem servidor e sem internet, com uma Content-Security-Policy que só deixa rodar o próprio script (conferido por hash SHA-256) e bloqueia qualquer conexão de rede. Os arquivos ficam em **Arquivo → Arquivos recentes** e podem ser salvos e abertos como `.grafo`.
+Baixe o [`Grafo.html`](Grafo.html) e abra com dois cliques. O editor inteiro, com o núcleo WebAssembly embutido, abre sem servidor e sem internet, com uma Content-Security-Policy que só deixa rodar o próprio script (conferido por hash SHA-256) e só libera conexões para os provedores de IA conhecidos (Anthropic, OpenAI, Google Gemini, OpenRouter e Ollama ou LM Studio no próprio computador), usadas apenas quando você configura a IA. Os arquivos ficam em **Arquivo → Arquivos recentes** e podem ser salvos e abertos como `.grafo`.
 
 Para usar sem baixar, abra a [versão online](https://ravelroot.github.io/Collaborative-Design-and-Diagram-Editor/): é o mesmo `Grafo.html`, publicado no GitHub Pages, e funciona do mesmo jeito (a colaboração entre pessoas continua sendo do servidor).
 
@@ -478,6 +516,8 @@ curl http://localhost:8080/api/files/<id>/versions
 | Método e rota | Para quê |
 |---|---|
 | `GET /api/health` | Estado do servidor, do PostgreSQL, do Redis e do NATS |
+| `GET /api/ai/status` | Se a IA está configurada no servidor, com o provedor e o modelo (nunca a chave) |
+| `POST /api/ai/request` | Encaminha o pedido do editor ao provedor de IA com a chave do servidor, o modelo configurado e o limite de tokens e de pedidos por hora |
 | `GET /api/metrics` | Métricas no formato do Prometheus: salas, conexões, participantes, updates aplicados e recusados, limite de taxa e serviços disponíveis (exige o token quando ele está definido) |
 | `GET`, `POST /api/files` | Listar e criar arquivos (o POST aceita o `id` gerado no editor e é idempotente) |
 | `GET`, `PATCH`, `DELETE /api/files/{id}` | Ler, renomear, mudar o tipo e excluir |
@@ -524,6 +564,12 @@ Tipos de nó: `frame`, `section`, `group`, `rect`, `ellipse`, `polygon`, `star`,
 | `GRAFO_RATE_LIMIT` | `120` | Requisições por minuto por IP |
 | `GRAFO_ROOM_IDLE_SECS` | `60` | Segundos até descarregar uma sala vazia |
 | `GRAFO_TRUST_PROXY` | `false` | Lê o IP do `X-Forwarded-For` atrás de proxy confiável |
+| `GRAFO_AI_PROVIDER` | — | Liga a IA no servidor: `anthropic`, `openai`, `gemini`, `openrouter`, `ollama` ou `lmstudio` |
+| `GRAFO_AI_API_KEY` | — | Chave do provedor (obrigatória, menos no Ollama e no LM Studio) |
+| `GRAFO_AI_MODEL` | do provedor | Modelo usado em todos os pedidos (o editor não escolhe) |
+| `GRAFO_AI_BASE_URL` | do provedor | Endereço da API, para proxies ou modelos locais em outra máquina |
+| `GRAFO_AI_MAX_TOKENS` | `8192` | Limite de tokens por resposta (256 a 32.000) |
+| `GRAFO_AI_RATE_LIMIT` | `30` | Pedidos à IA por hora por IP |
 | `RUST_LOG` | `info` | Nível de log |
 
 No `.env` do Compose também ficam `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` e `GRAFO_PORT`. No editor, o renderizador WebGPU liga em **Exibir → Render WebGPU** ou com `?render=webgpu` no endereço; o padrão é o WebGL2, que funciona em todos os navegadores atuais.
@@ -559,10 +605,10 @@ Diagramas, campos, restrições, índices e consultas prontas estão no [`Banco-
 | Suíte | O que cobre | Resultado |
 |---|---|---|
 | Núcleo C++/WASM (33 testes) | Entradas degeneradas e NaN, fuzz de 300 pares de polígonos nas quatro booleanas, rota com 500 obstáculos, índice com 10.000 caixas conferido contra força bruta, layout com 300 nós e 400 arestas, memória estável em 5.000 rodadas, WASM e JavaScript com o mesmo resultado | Rota com 500 obstáculos em 0,9 a 35 ms; 1.000 consultas no índice em 6 ms |
-| Editor (30 testes) | Diagrama a partir de Mermaid (formas, setas, rótulos, `&`, `subgraph`, entrada malformada e limites) e de lista com recuo, Mermaid de ida e volta, localizar e substituir com acentos e caracteres especiais, tabela e ordem de conexão, calculadora dos campos, CSV, as 107 formas em vários tamanhos, os 63 modelos e os 46 padrões (como diagrama e como aula) montados no documento sem pontas soltas, a aula ao contrário, geometria, conectores ortogonais, cores do conta-gotas, distâncias da medição, organizar em grade, maiúsculas e minúsculas, clique em forma espelhada, desfazer só o que é seu, `.grafo` de ida e volta, três réplicas com 600 edições concorrentes entregues fora de ordem | As réplicas convergem; com 20.000 objetos, 200 consultas de filhos levam cerca de 10 ms |
-| Ponta a ponta (22 cenários) | Diagrama a partir de texto e de lista, Mermaid de volta, conectar em sequência, localizar e substituir entre páginas com desfazer, tabela, grade de encaixe, espaço entre itens, estilo rápido, página vazia, Tab sem cobrir o canvas, GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, galeria Novo quadro com modelo e aula (Tab e Enter criando ramificações), ações rápidas pelo teclado, espelhar com conectores, trocar cores, copiar e colar propriedades, organizar em grade, duplicação inteligente, Tab entre camadas, trava de proporção, conta-gotas, medição com Alt, guias puxadas da régua, ajustar ao conteúdo, renomear em lote, busca de camadas, exportação SVG e PDF, duas abas colaborando, 3.000 objetos, o `Grafo.html` direto do disco, o tutorial rápido (aparece uma vez, avança, pula e reabre pelo menu Ajuda) e a ponte do app desktop (janela Salvar como e F11), sem nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
+| Editor (34 testes) | Área de IA: normalização do diagrama devolvido (UML, ids repetidos, formas e ligações inválidas, limites), montagem no documento, layout manual de telas, pedidos e respostas da Anthropic e das APIs compatíveis com OpenAI, erros 401 e 429 e a CSP igual no arquivo único, no servidor e no app desktop; Diagrama a partir de Mermaid (formas, setas, rótulos, `&`, `subgraph`, entrada malformada e limites) e de lista com recuo, Mermaid de ida e volta, localizar e substituir com acentos e caracteres especiais, tabela e ordem de conexão, calculadora dos campos, CSV, as 107 formas em vários tamanhos, os 63 modelos e os 46 padrões (como diagrama e como aula) montados no documento sem pontas soltas, a aula ao contrário, geometria, conectores ortogonais, cores do conta-gotas, distâncias da medição, organizar em grade, maiúsculas e minúsculas, clique em forma espelhada, desfazer só o que é seu, `.grafo` de ida e volta, três réplicas com 600 edições concorrentes entregues fora de ordem | As réplicas convergem; com 20.000 objetos, 200 consultas de filhos levam cerca de 10 ms |
+| Ponta a ponta (23 cenários) | Criar com IA com a chave no navegador (provedor simulado), desfazer, erro de chave recusada e modelo local em JSON com tela posicionada, Diagrama a partir de texto e de lista, Mermaid de volta, conectar em sequência, localizar e substituir entre páginas com desfazer, tabela, grade de encaixe, espaço entre itens, estilo rápido, página vazia, Tab sem cobrir o canvas, GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, galeria Novo quadro com modelo e aula (Tab e Enter criando ramificações), ações rápidas pelo teclado, espelhar com conectores, trocar cores, copiar e colar propriedades, organizar em grade, duplicação inteligente, Tab entre camadas, trava de proporção, conta-gotas, medição com Alt, guias puxadas da régua, ajustar ao conteúdo, renomear em lote, busca de camadas, exportação SVG e PDF, duas abas colaborando, 3.000 objetos, o `Grafo.html` direto do disco, o tutorial rápido (aparece uma vez, avança, pula e reabre pelo menu Ajuda) e a ponte do app desktop (janela Salvar como e F11), sem nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
 | App desktop | Build reproduzível do `Grafo.exe` (gerado de novo e comparado byte a byte), `go vet` e `gofmt` no código Go | Idêntico; 0 problemas |
-| Servidor (27 testes) | Métricas do Prometheus e token exigido nelas, protocolo, UUID, limites, limite de taxa, convergência, reconexão depois de 25 updates perdidos, mensagens malformadas, 50 clientes numa sala e 20 salas em paralelo | 50 clientes convergem em 80 ms; 1.000 updates em 20 salas em 288 ms |
+| Servidor (31 testes) | Proxy de IA com provedor simulado (chave injetada, modelo forçado, tokens limitados, 400, 429 e 503), configuração dos provedores, Métricas do Prometheus e token exigido nelas, protocolo, UUID, limites, limite de taxa, convergência, reconexão depois de 25 updates perdidos, mensagens malformadas, 50 clientes numa sala e 20 salas em paralelo | 50 clientes convergem em 80 ms; 1.000 updates em 20 salas em 288 ms |
 
 O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten, confere se o `Grafo.html` está em dia com o código, gera o `Grafo.exe` de novo e compara byte a byte com o do repositório e constrói a imagem Docker.
 
@@ -571,6 +617,7 @@ O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten,
 - **Navegador:** CSP sem `unsafe-eval` (o PixiJS roda no modo sem `eval` e os campos numéricos usam uma calculadora própria), `connect-src` limitado ao próprio servidor e `frame-ancestors 'none'`. Nomes de arquivos, páginas, camadas, comentários e textos entram sempre como texto, nunca como HTML. SVG importado perde scripts, eventos e referências externas e entra como imagem. Arquivos `.grafo` inválidos são recusados sem tocar no documento aberto.
 - **Diagrama de texto e busca:** o leitor de Mermaid limita formas, conectores, rótulos e tamanho do texto, ignora o que não reconhece sem travar e nunca interpreta HTML; a busca trata o texto procurado como texto comum e não altera camadas bloqueadas.
 - **Servidor:** UUID validado em todas as rotas, `/api/metrics` protegido pelo mesmo token das escritas, limite de tamanho por update e por imagem, tipo de imagem conferido pelos bytes, limite de requisições por IP (429 com `Retry-After`), token de API comparado em tempo constante, links de leitura que não gravam, mensagens que o Yrs não decodifica derrubam só a conexão que as mandou, e CSP com sandbox nas imagens servidas. A imagem Docker roda sem root, sem capacidades e com sistema de arquivos somente leitura.
+- **IA:** no navegador a chave fica só no `sessionStorage` (ou no `localStorage`, se você pedir) e vai direto para o provedor, com `credentials: omit` e sem referrer; no app desktop fica cifrada pelo Windows e a página nunca a recebe; no servidor fica no `.env`, o modelo e o limite de tokens são impostos pelo servidor e há limite de pedidos por hora. A resposta da IA é validada antes de virar formas.
 - **App desktop:** carrega o mesmo `Grafo.html`, com a mesma Content-Security-Policy, roda sem permissão de administrador, não abre portas, desliga as ferramentas de desenvolvedor e o menu de contexto do navegador e só grava arquivos que você escolheu na janela Salvar como.
 - **Dados:** o CRDT garante que todos convergem para o mesmo documento, em qualquer ordem de chegada; o desfazer de cada pessoa só mexe nas próprias alterações; o editor guarda uma cópia local no IndexedDB a cada mudança, e o servidor compacta o estado e mantém os updates com número de sequência para recuperar depois de uma queda.
 - **Desempenho:** a renderização só acontece quando algo muda; os objetos fora da tela não são desenhados; a árvore de filhos, a ordem de desenho e a versão de cada nó ficam em índices que só se refazem quando a estrutura muda, e o PixiJS só redesenha os nós alterados.
@@ -581,15 +628,16 @@ O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten,
 Grafo.exe                   app desktop para Windows, que abre maximizado (gerado)
 Grafo.html                  o editor inteiro num arquivo só, que abre sem servidor (gerado)
 index.html                  abre o Grafo.html com dois cliques
-desktop/                    código do app desktop em Go (janela WebView2, tela cheia, menu Iniciar, Salvar como, manifesto)
+desktop/                    código do app desktop em Go (janela WebView2, tela cheia, menu Iniciar, Salvar como, chave da IA cifrada, manifesto)
 web/                        editor
   index.html, css/, img/    página, estilos com a paleta e logo
   boot.js                   leva ao Grafo.html quando o index.html é aberto direto do disco
   src/                      módulos: documento, render, editor, painéis, exportação, apresentação, modelos e aula, diagrama a partir de texto (Mermaid), tutorial e exemplo
+  src/ai.js                 área Criar com IA: provedores, pedido, validação e montagem do diagrama
   src/engine/               ponte JavaScript do núcleo WebAssembly, com versões em JavaScript
   assets/engine.wasm        núcleo compilado (gerado)
 engine/                     núcleo geométrico em C++17 (include/, src/, build.sh, CMakeLists.txt)
-server/                     servidor em Rust (src/, migrations/, tests/)
+server/                     servidor em Rust (src/ com o proxy de IA em ai.rs, migrations/, tests/)
 scripts/                    build do editor (esbuild), do Grafo.html e do Grafo.exe e servidor estático
 tests/js/                   testes do núcleo e do editor
 tests/e2e/                  testes ponta a ponta (Playwright)
@@ -609,6 +657,7 @@ O Grafo depende de componentes com licenças próprias, que continuam valendo pa
 | [Yrs](https://github.com/y-crdt/y-crdt) | Documento colaborativo no servidor | MIT |
 | [Tokio](https://tokio.rs/), [Axum](https://github.com/tokio-rs/axum), [tower-http](https://github.com/tower-rs/tower-http) | Servidor assíncrono, rotas e WebSocket | MIT |
 | [SQLx](https://github.com/launchbadge/sqlx) | Acesso ao PostgreSQL | MIT ou Apache-2.0 |
+| [reqwest](https://github.com/seanmonstar/reqwest) e [rustls](https://github.com/rustls/rustls) | Pedidos HTTPS do servidor ao provedor de IA | MIT ou Apache-2.0 (rustls também ISC) |
 | [redis-rs](https://github.com/redis-rs/redis-rs) | Cliente do Redis | BSD-3-Clause |
 | [async-nats](https://github.com/nats-io/nats.rs) | Cliente do NATS JetStream | Apache-2.0 |
 | [Serde](https://serde.rs/), [uuid](https://github.com/uuid-rs/uuid), [chrono](https://github.com/chronotope/chrono), [sha2](https://github.com/RustCrypto/hashes), [tracing](https://github.com/tokio-rs/tracing), [DashMap](https://github.com/xacrimon/dashmap) | Serialização, identificadores, datas, hash, logs e mapas concorrentes | MIT ou Apache-2.0 |

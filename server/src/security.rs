@@ -11,7 +11,7 @@ use redis::AsyncCommands;
 use crate::error::ApiError;
 use crate::state::Shared;
 
-pub const APP_CSP: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; worker-src 'self' blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+pub const APP_CSP: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://openrouter.ai http://localhost:11434 http://localhost:1234 http://127.0.0.1:11434 http://127.0.0.1:1234; worker-src 'self' blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
 pub const ASSET_CSP: &str =
     "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox";
 
@@ -185,6 +185,7 @@ mod tests {
             rate_limit: limit,
             room_idle_secs: 60,
             trust_proxy: false,
+            ai: None,
         }
     }
 

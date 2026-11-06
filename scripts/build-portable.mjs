@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { AI_ORIGINS } from '../web/src/ai.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'web', 'dist');
@@ -14,7 +15,7 @@ const wasm = await readFile(path.join(dist, 'assets', 'engine.wasm'));
 const favicon = await readFile(path.join(dist, 'img', 'favicon.svg'), 'utf8');
 const boot = `window.GRAFO_PORTABLE=true;window.GRAFO_ENGINE_WASM=${JSON.stringify('data:application/wasm;base64,' + wasm.toString('base64'))};`;
 const sha = (s) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`;
-const csp = `default-src 'none'; script-src ${sha(boot)} ${sha(js)} 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'`;
+const csp = `default-src 'none'; script-src ${sha(boot)} ${sha(js)} 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src ${AI_ORIGINS.join(' ')}; worker-src blob:; base-uri 'none'; form-action 'none'; object-src 'none'`;
 let out = html
   .replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta http-equiv="Content-Security-Policy" content="${csp}">`)
   .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64')}" type="image/svg+xml">`)

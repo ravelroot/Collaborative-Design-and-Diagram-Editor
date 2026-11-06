@@ -2,6 +2,8 @@ use std::env;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
+use crate::ai::AiConfig;
+
 #[derive(Clone, Debug)]
 pub struct Config {
     pub bind: SocketAddr,
@@ -15,6 +17,7 @@ pub struct Config {
     pub rate_limit: u64,
     pub room_idle_secs: u64,
     pub trust_proxy: bool,
+    pub ai: Option<AiConfig>,
 }
 
 fn non_empty(key: &str) -> Option<String> {
@@ -58,6 +61,7 @@ impl Config {
             rate_limit: parse_or("GRAFO_RATE_LIMIT", 120u64).max(1),
             room_idle_secs: parse_or("GRAFO_ROOM_IDLE_SECS", 60u64).max(1),
             trust_proxy: parse_or("GRAFO_TRUST_PROXY", false),
+            ai: AiConfig::from_vars(non_empty)?,
         })
     }
 }

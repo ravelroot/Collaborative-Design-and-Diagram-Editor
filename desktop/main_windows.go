@@ -155,8 +155,9 @@ func main() {
 	must(w.Bind("__grafoWriteFile", func(path, data string) error {
 		return a.writeChosenFile(path, data)
 	}))
+	bindAI(w, dir)
 	w.Init(fmt.Sprintf(`
-(() => {
+(() => {`+aiScript+`
   const pending = new Map();
   let next = 0;
   window.__grafoSaveDone = (id, answer) => {
@@ -180,6 +181,7 @@ func main() {
         });
       }),
     writeFile: (path, data) => window.__grafoWriteFile(path, data),
+    ai,
   });
 })();
 document.addEventListener('DOMContentLoaded', () => {

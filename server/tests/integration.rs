@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use futures::{SinkExt, StreamExt};
+use grafo_server::ai::AiConfig;
 use grafo_server::config::Config;
 use grafo_server::state::AppState;
 use tokio::sync::{mpsc, oneshot};
@@ -24,6 +25,10 @@ struct TestServer {
 
 impl TestServer {
     async fn start(max_update_bytes: usize) -> Self {
+        Self::start_with_ai(max_update_bytes, None).await
+    }
+
+    async fn start_with_ai(max_update_bytes: usize, ai: Option<AiConfig>) -> Self {
         let cfg = Config {
             bind: "127.0.0.1:0".parse().unwrap(),
             database_url: None,
@@ -36,6 +41,7 @@ impl TestServer {
             rate_limit: 120,
             room_idle_secs: 60,
             trust_proxy: false,
+            ai,
         };
         let app = AppState::connect(cfg).await;
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -295,6 +301,19 @@ async fn reqwest_like_health(addr: SocketAddr) -> String {
     raw_get(addr, "/api/health").await
 }
 
+async fn raw_post(addr: SocketAddr, path: &str, body: &str) -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+    let req = format!(
+        "POST {path} HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    stream.write_all(req.as_bytes()).await.unwrap();
+    let mut buf = Vec::new();
+    stream.read_to_end(&mut buf).await.unwrap();
+    String::from_utf8_lossy(&buf).to_string()
+}
+
 async fn raw_get(addr: SocketAddr, path: &str) -> String {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
@@ -431,5 +450,83 @@ async fn metrics_report_rooms_connections_and_updates() {
     assert!(body.contains("grafo_dependency_up{service=\"postgres\"} 0"));
     a.close().await;
     b.close().await;
+    server.stop().await;
+}
+
+async fn mock_provider() -> (SocketAddr, Arc<Mutex<Vec<(String, serde_json::Value)>>>) {
+    use axum::routing::post;
+    let seen: Arc<Mutex<Vec<(String, serde_json::Value)>>> = Arc::new(Mutex::new(Vec::new()));
+    let log = seen.clone();
+    let app = axum::Router::new().route(
+        "/v1/messages",
+        post(move |headers: axum::http::HeaderMap, body: axum::Json<serde_json::Value>| {
+            let log = log.clone();
+            async move {
+                let key = headers.get("x-api-key").and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+                log.lock().unwrap().push((key, body.0.clone()));
+                axum::Json(serde_json::json!({
+                    "content": [{ "type": "tool_use", "name": "criar_diagrama", "input": { "title": "Banco", "nodes": [{ "id": "a", "shape": "umlClass" }], "edges": [] } }],
+                    "model": body.0["model"],
+                    "max_tokens_seen": body.0["max_tokens"]
+                }))
+            }
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+    (addr, seen)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ai_proxy_injects_key_forces_model_and_limits_rate() {
+    let off = TestServer::start(1 << 20).await;
+    assert!(raw_get(off.addr, "/api/ai/status")
+        .await
+        .contains("\"enabled\":false"));
+    let refused = raw_post(off.addr, "/api/ai/request", r#"{"body":{"messages":[]}}"#).await;
+    assert!(refused.starts_with("HTTP/1.1 503"), "{refused}");
+    off.stop().await;
+
+    let (provider, seen) = mock_provider().await;
+    let ai = AiConfig::from_vars(|k| match k {
+        "GRAFO_AI_PROVIDER" => Some("anthropic".to_string()),
+        "GRAFO_AI_API_KEY" => Some("chave-secreta".to_string()),
+        "GRAFO_AI_BASE_URL" => Some(format!("http://{provider}")),
+        "GRAFO_AI_MODEL" => Some("modelo-do-servidor".to_string()),
+        "GRAFO_AI_MAX_TOKENS" => Some("1000".to_string()),
+        "GRAFO_AI_RATE_LIMIT" => Some("2".to_string()),
+        _ => None,
+    })
+    .unwrap();
+    let server = TestServer::start_with_ai(1 << 20, ai).await;
+    let status = raw_get(server.addr, "/api/ai/status").await;
+    assert!(status.contains("\"enabled\":true"), "{status}");
+    assert!(status.contains("modelo-do-servidor"));
+    assert!(!status.contains("chave-secreta"));
+    let bad = raw_post(server.addr, "/api/ai/request", r#"{"body":[1,2]}"#).await;
+    assert!(bad.starts_with("HTTP/1.1 400"), "{bad}");
+    let ok = raw_post(server.addr, "/api/ai/request", r#"{"body":{"model":"outro","max_tokens":99999,"messages":[{"role":"user","content":"banco"}]}}"#).await;
+    assert!(ok.starts_with("HTTP/1.1 200"), "{ok}");
+    assert!(ok.contains("tool_use"));
+    assert!(!ok.contains("chave-secreta"));
+    {
+        let log = seen.lock().unwrap();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].0, "chave-secreta");
+        assert_eq!(log[0].1["model"], "modelo-do-servidor");
+        assert_eq!(log[0].1["max_tokens"], 1000);
+    }
+    let limited = raw_post(
+        server.addr,
+        "/api/ai/request",
+        r#"{"body":{"messages":[]}}"#,
+    )
+    .await;
+    assert!(limited.starts_with("HTTP/1.1 429"), "{limited}");
+    let metrics = raw_get(server.addr, "/api/metrics").await;
+    assert!(metrics.contains("grafo_ai_enabled 1"));
     server.stop().await;
 }

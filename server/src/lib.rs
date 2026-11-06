@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod api;
 pub mod bus;
 pub mod config;
@@ -27,6 +28,11 @@ pub fn router(app: Shared) -> Router {
     let api = Router::new()
         .route("/health", get(api::health))
         .route("/metrics", get(api::metrics))
+        .route("/ai/status", get(ai::status))
+        .route(
+            "/ai/request",
+            post(ai::request).layer(DefaultBodyLimit::max(ai::MAX_REQUEST_BYTES)),
+        )
         .route("/files", get(api::list_files).post(api::create_file))
         .route(
             "/files/{id}",

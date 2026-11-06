@@ -11,6 +11,8 @@ pub struct Metrics {
     pub update_bytes_total: AtomicU64,
     pub frames_rejected_total: AtomicU64,
     pub rate_limited_total: AtomicU64,
+    pub ai_requests_total: AtomicU64,
+    pub ai_failures_total: AtomicU64,
 }
 
 pub static METRICS: Metrics = Metrics {
@@ -19,6 +21,8 @@ pub static METRICS: Metrics = Metrics {
     update_bytes_total: AtomicU64::new(0),
     frames_rejected_total: AtomicU64::new(0),
     rate_limited_total: AtomicU64::new(0),
+    ai_requests_total: AtomicU64::new(0),
+    ai_failures_total: AtomicU64::new(0),
 };
 
 static STARTED: OnceLock<Instant> = OnceLock::new();
@@ -120,6 +124,27 @@ pub fn render(app: &Shared) -> String {
         "counter",
         "Requisições recusadas pelo limite de taxa",
         m.rate_limited_total.load(Ordering::Relaxed),
+    );
+    line(
+        &mut out,
+        "grafo_ai_requests_total",
+        "counter",
+        "Pedidos encaminhados ao provedor de IA",
+        m.ai_requests_total.load(Ordering::Relaxed),
+    );
+    line(
+        &mut out,
+        "grafo_ai_failures_total",
+        "counter",
+        "Pedidos à IA que falharam ou voltaram com erro",
+        m.ai_failures_total.load(Ordering::Relaxed),
+    );
+    line(
+        &mut out,
+        "grafo_ai_enabled",
+        "gauge",
+        "IA configurada no servidor",
+        u8::from(app.cfg.ai.is_some()),
     );
     let _ = writeln!(
         out,

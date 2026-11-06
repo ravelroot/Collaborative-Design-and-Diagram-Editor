@@ -8,14 +8,23 @@ import { Store } from './doc.js';
 import { startTutorial } from './tutorial.js';
 import { TEMPLATES, TEMPLATE_CATEGORIES, PATTERN_TEMPLATES, AULA_STARTS, buildBoard, boardPreview, aulaStart } from './templates.js';
 import { parseTextDiagram } from './textdiagram.js';
+import { AI_PROVIDERS, AI_LIMITS, providerById, keyStore, serverStatus, generateDiagram, specToBoard, summarize } from './ai.js';
 
 const BLEND_NAMES = { normal: 'Normal', multiply: 'Multiplicar', screen: 'Tela', overlay: 'Sobrepor', darken: 'Escurecer', lighten: 'Clarear', 'color-dodge': 'Subexposição de cor', 'color-burn': 'Superexposição de cor', 'hard-light': 'Luz forte', 'soft-light': 'Luz suave', difference: 'Diferença', exclusion: 'Exclusão', hue: 'Matiz', saturation: 'Saturação', color: 'Cor', luminosity: 'Luminosidade' };
 const TYPE_ICON = { frame: 'frame', section: 'section', group: 'group', rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', image: 'image', sticky: 'sticky', shape: 'shapes', connector: 'connector', component: 'component', instance: 'instance', boolean: 'union' };
 const TYPE_NAME = { frame: 'Frame', section: 'Seção', group: 'Grupo', rect: 'Retângulo', ellipse: 'Elipse', polygon: 'Polígono', star: 'Estrela', path: 'Vetor', text: 'Texto', image: 'Imagem', sticky: 'Nota adesiva', shape: 'Forma', connector: 'Conector', component: 'Componente', instance: 'Instância', boolean: 'Booleana' };
 const FRAME_PRESETS = [['Celular', 390, 844], ['Celular grande', 430, 932], ['Tablet', 834, 1194], ['Notebook', 1280, 832], ['Desktop', 1440, 1024], ['Slide 16:9', 1920, 1080], ['A4', 595, 842], ['Post quadrado', 1080, 1080], ['Story', 1080, 1920]];
 const PALETTE = ['#5D1C16', '#A3B4BE', '#5C4034', '#E6DDCE', '#7A6E46', '#D6BDB8', '#F6E4A6', '#2B1D17', '#FFFFFF', '#000000'];
-const APP_VERSION = typeof GRAFO_VERSION !== 'undefined' ? GRAFO_VERSION : '1.3.0';
+const APP_VERSION = typeof GRAFO_VERSION !== 'undefined' ? GRAFO_VERSION : '1.4.0';
 const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const AI_EXAMPLES = [
+  'Diagrama de classes UML completo de um sistema bancário, com contas, clientes, transações, cartões e agências',
+  'Modelo entidade-relacionamento de uma loja virtual com clientes, pedidos, itens, produtos, estoque e pagamentos',
+  'Fluxograma de aprovação de crédito com análise de documentos, score e decisão do gerente',
+  'Arquitetura em nuvem de um app de delivery com API gateway, microsserviços, filas e bancos',
+  'Diagrama de casos de uso de um sistema de biblioteca',
+  'Tela de login de um app de celular com e-mail, senha, lembrar de mim e entrar com Google',
+];
 const QUICK_STYLES = [
   ['Linho', '#FAF6EF', '#5C4034', '#2B1D17'],
   ['Palha', '#F6E4A6', '#7A6E46', '#2B1D17'],
@@ -55,6 +64,8 @@ export class UI {
       this.schedule(info.nodes && !info.structure && typing ? 'light' : 'all');
     });
     this.offSave = this.store.onSave(() => this.updateStatus());
+    this.ai = { backend: 'browser', server: null, desktop: null, prompt: '', busy: false, ctrl: null, result: null, error: '', started: 0, draftKey: '' };
+    this.detectAI();
     this.bindKeys();
     this.renderAll();
   }
@@ -118,6 +129,8 @@ export class UI {
       const b = el('button', { class: 'tool', title: `${t.name} (${t.key})`, 'aria-label': t.name, dataset: { tool: t.id }, onclick: () => this.ed.setTool(t.id) }, icon(t.icon));
       tools.append(b);
     }
+    this.aiBtn = el('button', { class: 'btn icon ai-btn', title: 'Criar com IA (Ctrl+Alt+I)', 'aria-label': 'Criar com IA', onclick: () => this.openAI() }, icon('sparkle', 16));
+    d.presentBtn.before(this.aiBtn);
     d.presentBtn.append(icon('play', 16), el('span', { class: 'btn-label', text: 'Apresentar' }));
     d.presentBtn.onclick = () => this.startPresent();
     d.shareBtn.onclick = () => this.shareDialog();
@@ -146,7 +159,8 @@ export class UI {
       el('div', { class: 'empty-card' },
         el('div', { class: 'empty-title' }, el('b', { text: 'Página vazia' }), el('span', { class: 'hint', text: 'Desenhe com as ferramentas acima ou comece por aqui' })),
         el('div', { class: 'empty-actions' },
-          el('button', { class: 'btn small', onclick: () => this.galleryDialog() }, icon('sparkle', 13), 'Novo quadro'),
+          el('button', { class: 'btn small primary', onclick: () => this.openAI() }, icon('sparkle', 13), 'Criar com IA'),
+          el('button', { class: 'btn small', onclick: () => this.galleryDialog() }, icon('layers', 13), 'Novo quadro'),
           el('button', { class: 'btn small', onclick: () => this.textDiagramDialog() }, icon('code', 13), 'Diagrama de texto'),
           el('button', { class: 'btn small', onclick: () => this.tableDialog() }, icon('table', 13), 'Tabela'),
           el('button', { class: 'btn small', onclick: () => this.importImage() }, icon('image', 13), 'Imagem')),
@@ -215,6 +229,7 @@ export class UI {
     return [
       { name: 'Arquivo', items: () => [
         { label: 'Novo quadro…', key: 'Ctrl+Alt+N', run: () => this.galleryDialog() },
+        { label: 'Criar com IA…', key: 'Ctrl+Alt+I', run: () => this.openAI() },
         { label: 'Diagrama a partir de texto…', key: 'Ctrl+Alt+M', run: () => this.textDiagramDialog() },
         { label: 'Novo arquivo em branco', run: () => app.newFile() },
         { label: 'Abrir arquivo .grafo…', key: 'Ctrl+O', run: () => this.openFile() },
@@ -429,6 +444,7 @@ export class UI {
       '-',
       { label: 'Ajustar tudo', key: 'Shift+1', run: () => ed.zoomToFit() },
       { label: 'Layout automático do diagrama', key: 'Ctrl+Shift+Y', run: () => ed.autoArrange(0) },
+      { label: 'Criar com IA…', key: 'Ctrl+Alt+I', run: () => this.openAI() },
       { label: 'Diagrama a partir de texto…', key: 'Ctrl+Alt+M', run: () => this.textDiagramDialog() },
       { label: 'Inserir tabela aqui…', key: 'Shift+T', run: () => this.tableDialog({ x: ed.mouse.x, y: ed.mouse.y }) },
       { label: 'Adicionar comentário', key: 'C', run: () => this.newComment({ x: ed.mouse.x, y: ed.mouse.y }) },
@@ -522,6 +538,7 @@ export class UI {
     const scroll = host.querySelector('.panel-body')?.scrollTop || 0;
     if (this.renameId && host.querySelector('.rename')) return;
     if (document.activeElement === this.dom.fileName) return;
+    if (this.leftTab === 'ai' && host.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
     const searching = this.layerSearch && document.activeElement === this.layerSearch ? [this.layerSearch.selectionStart, this.layerSearch.selectionEnd] : null;
     this.renderLeftInner(host, scroll);
     if (searching && this.layerSearch.isConnected) {
@@ -535,13 +552,14 @@ export class UI {
   renderLeftInner(host, scroll) {
     host.innerHTML = '';
     host.append(el('div', { class: 'file-head' }, this.dom.fileName, el('span', { class: 'tag', text: this.store.mode === 'server' ? 'Servidor' : 'Local' })));
-    this.tabs(host, [['layers', 'Camadas', 'layers'], ['shapes', 'Formas', 'shapes']], this.leftTab, (t) => {
+    this.tabs(host, [['layers', 'Camadas', 'layers'], ['shapes', 'Formas', 'shapes'], ['ai', 'IA', 'sparkle']], this.leftTab, (t) => {
       this.leftTab = t;
       this.renderLeft();
     });
     const body = el('div', { class: 'panel-body' });
     host.append(body);
     if (this.leftTab === 'layers') this.renderLayers(body);
+    else if (this.leftTab === 'ai') this.renderAI(body);
     else this.renderLibrary(body);
     body.scrollTop = scroll;
   }
@@ -1684,6 +1702,9 @@ export class UI {
     this.closeMenu();
     this.abort.abort();
     if (this.offSave) this.offSave();
+    if (this.ai && this.ai.ctrl) this.ai.ctrl.abort();
+    if (this.aiTimer) clearInterval(this.aiTimer);
+    if (this.aiBtn) this.aiBtn.remove();
     if (this.emptyEl) this.emptyEl.remove();
     this.closeFind();
   }
@@ -1778,6 +1799,7 @@ export class UI {
       if (e.code === 'KeyF' && !e.altKey && !e.shiftKey) return run(() => this.findPanel());
       if (e.code === 'KeyH' && !e.altKey && !e.shiftKey) return run(() => this.findPanel(true));
       if (e.altKey && e.code === 'KeyM' && !e.shiftKey) return run(() => this.textDiagramDialog());
+      if (e.altKey && e.code === 'KeyI' && !e.shiftKey) return run(() => this.openAI());
       if (e.altKey && e.code === 'KeyX' && !e.shiftKey) return run(() => ed.connectSelection());
       if (e.shiftKey && !e.altKey && (k === '"' || k === "'" || e.code === 'Quote')) return run(() => this.toggleSnapGrid());
       if (e.altKey && e.code === 'KeyC' && !e.shiftKey) return run(() => ed.copyProps());
@@ -2416,6 +2438,199 @@ export class UI {
     return { close, input };
   }
 
+  async detectAI() {
+    const ai = this.ai;
+    if (this.store.mode === 'server') {
+      ai.server = await serverStatus();
+      if (ai.server) ai.backend = 'server';
+    } else if (window.grafoDesktop && window.grafoDesktop.ai) {
+      ai.backend = 'desktop';
+      try {
+        ai.desktop = await window.grafoDesktop.ai.status();
+      } catch {
+        ai.desktop = null;
+      }
+    }
+    if (this.leftTab === 'ai') this.renderLeft();
+  }
+
+  aiSettings() {
+    const saved = storage.get('aiSettings', {});
+    const provider = providerById(saved.provider);
+    return { provider, model: saved.provider === provider.id && saved.model ? saved.model : provider.model };
+  }
+
+  aiReady() {
+    const ai = this.ai;
+    if (ai.backend === 'server') return !!ai.server;
+    if (ai.backend === 'desktop') return !!(ai.desktop && ai.desktop.configured);
+    const { provider, model } = this.aiSettings();
+    return !!model && (!provider.key || !!keyStore.get(provider.id));
+  }
+
+  openAI(prompt = null) {
+    if (prompt !== null) this.ai.prompt = prompt;
+    this.leftTab = 'ai';
+    this.renderLeft();
+    requestAnimationFrame(() => {
+      const ta = this.dom.leftPanel.querySelector('.ai-prompt');
+      if (ta) ta.focus();
+    });
+  }
+
+  async runAI(prompt = this.ai.prompt) {
+    const ai = this.ai;
+    if (ai.busy) return;
+    const text = String(prompt || '').trim();
+    if (text.length < 3) {
+      ai.error = 'Descreva o que você quer criar.';
+      return this.renderLeft();
+    }
+    if (!this.aiReady()) {
+      ai.error = ai.backend === 'desktop' ? 'Configure o provedor e a chave da IA logo abaixo.' : 'Escolha o provedor e informe a chave da IA logo abaixo.';
+      return this.renderLeft();
+    }
+    const { provider, model } = this.aiSettings();
+    const kind = ai.backend === 'server' ? ai.server.kind : ai.backend === 'desktop' ? ai.desktop.kind : provider.kind;
+    ai.busy = true;
+    ai.error = '';
+    ai.result = null;
+    ai.ctrl = new AbortController();
+    ai.started = performance.now();
+    this.aiTimer = setInterval(() => {
+      const t = this.dom.leftPanel.querySelector('.ai-elapsed');
+      if (t) t.textContent = `${Math.round((performance.now() - ai.started) / 1000)} s`;
+    }, 500);
+    this.renderLeft();
+    try {
+      const spec = await generateDiagram({ prompt: text, backend: ai.backend, kind, provider, key: keyStore.get(provider.id), model: ai.backend === 'server' ? ai.server.model : model, signal: ai.ctrl.signal });
+      if (!this.app || this.app.ui !== this) return;
+      const items = specToBoard(spec);
+      this.ed.insertBoard(items);
+      ai.result = { title: spec.title, summary: summarize(spec), warnings: spec.warnings, prompt: text };
+      storage.set('aiHistory', [text, ...storage.get('aiHistory', []).filter((h) => h !== text)].slice(0, 8));
+      this.toast(`${spec.title}: ${summarize(spec)}`);
+    } catch (err) {
+      ai.error = err && err.message ? err.message : 'Não foi possível gerar o diagrama.';
+    } finally {
+      clearInterval(this.aiTimer);
+      ai.busy = false;
+      ai.ctrl = null;
+      if (this.app.ui === this) this.renderLeft();
+    }
+  }
+
+  renderAI(body) {
+    const ai = this.ai;
+    const s = el('div', { class: 'section ai-area' });
+    s.append(el('div', { class: 'section-title' }, 'Criar com IA'));
+    const ta = el('textarea', { class: 'lib-search ai-prompt', rows: 6, maxlength: AI_LIMITS.prompt, placeholder: 'Descreva o que você quer criar. Ex.: diagrama de classes UML completo de um sistema bancário', 'aria-label': 'Pedido para a IA', dataset: { keep: 'aiprompt' }, disabled: ai.busy || undefined }, ai.prompt);
+    ta.addEventListener('input', () => (ai.prompt = ta.value));
+    ta.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        this.runAI(ta.value);
+      }
+    });
+    s.append(ta);
+    if (ai.busy) {
+      s.append(el('div', { class: 'ai-busy', role: 'status', 'aria-live': 'polite' }, el('span', { class: 'ai-spinner' }), el('span', { text: 'Criando o diagrama…' }), el('span', { class: 'ai-elapsed hint', text: '0 s' }), el('button', { class: 'btn small', onclick: () => ai.ctrl && ai.ctrl.abort() }, 'Cancelar')));
+    } else {
+      s.append(el('button', { class: 'btn primary ai-go', onclick: () => this.runAI(ta.value) }, icon('sparkle', 14), 'Gerar no quadro', el('kbd', { text: 'Ctrl+Enter' })));
+    }
+    if (ai.error) s.append(el('div', { class: 'ai-error', role: 'alert', text: ai.error }));
+    if (ai.result && !ai.busy) {
+      const r = ai.result;
+      s.append(el('div', { class: 'ai-result' },
+        el('div', {}, icon('check', 14), el('b', { text: r.title })),
+        el('div', { class: 'hint', text: `${r.summary} no quadro${r.warnings.length ? ' · ' + r.warnings.join(' ') : ''}` }),
+        el('div', { class: 'row' },
+          el('button', { class: 'btn small', onclick: () => this.runAI(r.prompt) }, 'Gerar outra versão'),
+          el('button', { class: 'btn small ghost', onclick: () => { this.store.undo.undo(); ai.result = null; this.renderLeft(); } }, 'Desfazer'))));
+    }
+    const ex = el('div', { class: 'ai-examples' });
+    for (const t of AI_EXAMPLES) ex.append(el('button', { class: 'ai-chip', title: t, disabled: ai.busy || undefined, onclick: () => { ai.prompt = t; this.renderLeft(); } }, t));
+    s.append(el('div', { class: 'hint', text: 'Exemplos' }), ex);
+    body.append(s);
+    const hist = storage.get('aiHistory', []);
+    if (hist.length) {
+      const h = el('div', { class: 'section' });
+      h.append(el('div', { class: 'section-title' }, 'Pedidos recentes', el('button', { class: 'btn small ghost', title: 'Limpar pedidos recentes', onclick: () => { storage.set('aiHistory', []); this.renderLeft(); } }, icon('trash', 13))));
+      for (const t of hist) h.append(el('button', { class: 'ai-history', title: t, disabled: ai.busy || undefined, onclick: () => { ai.prompt = t; this.renderLeft(); } }, t));
+      body.append(h);
+    }
+    body.append(this.aiConnectionSection());
+  }
+
+  aiConnectionSection() {
+    const ai = this.ai;
+    const s = el('div', { class: 'section' });
+    s.append(el('div', { class: 'section-title' }, 'Conexão com a IA', el('span', { class: 'ai-dot' + (this.aiReady() ? ' on' : ''), title: this.aiReady() ? 'Pronta' : 'Falta configurar' })));
+    if (ai.backend === 'server') {
+      s.append(el('div', { class: 'hint', text: `Configurada no servidor: ${ai.server.provider} · ${ai.server.model}. A chave fica só no servidor.` }));
+      return s;
+    }
+    const desktop = ai.backend === 'desktop';
+    const saved = this.aiSettings();
+    const cur = desktop && ai.desktop ? { provider: providerById(ai.desktop.provider), model: ai.desktop.model || providerById(ai.desktop.provider).model } : saved;
+    const providerId = ai.draftProvider || cur.provider.id;
+    const provider = providerById(providerId);
+    const model = ai.draftModel ?? (providerId === cur.provider.id ? cur.model : provider.model);
+    s.append(this.select(AI_PROVIDERS.map((p) => [p.id, p.name]), providerId, (v) => { ai.draftProvider = v; ai.draftModel = providerById(v).model; ai.draftKey = ''; this.renderLeft(); }, { key: 'aiprov', label: '' }));
+    const m = el('input', { type: 'text', value: model, placeholder: 'Modelo', 'aria-label': 'Modelo da IA', spellcheck: false, dataset: { keep: 'aimodel' } });
+    m.addEventListener('keydown', (e) => e.stopPropagation());
+    m.addEventListener('input', () => (ai.draftModel = m.value.trim()));
+    s.append(el('label', { class: 'field ai-field', style: { marginTop: '6px' } }, el('span', { class: 'lbl', text: 'Modelo' }), m));
+    let remember = keyStore.remembered(provider.id);
+    const has = desktop ? !!(ai.desktop && ai.desktop.configured && ai.desktop.provider === provider.id) : !!keyStore.get(provider.id);
+    let k = null;
+    if (provider.key) {
+      k = el('input', { type: 'password', value: ai.draftKey, placeholder: has ? 'Chave salva · digite para trocar' : 'Cole a chave de API', 'aria-label': 'Chave de API', autocomplete: 'off', spellcheck: false, dataset: { keep: 'aikey' } });
+      k.addEventListener('keydown', (e) => e.stopPropagation());
+      k.addEventListener('input', () => (ai.draftKey = k.value.trim()));
+      s.append(el('label', { class: 'field ai-field', style: { marginTop: '6px' } }, el('span', { class: 'lbl', text: 'Chave' }), k));
+      if (!desktop) s.append(el('label', { class: 'chk', style: { marginTop: '6px' } }, checkbox(remember, (v) => { remember = v; }), 'Lembrar neste navegador'));
+    } else {
+      s.append(el('div', { class: 'hint', text: `Sem chave: o Grafo fala com ${provider.base}. Deixe o programa aberto e libere o acesso do navegador (no Ollama, OLLAMA_ORIGINS="*").` }));
+    }
+    const save = async () => {
+      const key = (k ? k.value : '').trim();
+      const mdl = m.value.trim() || provider.model;
+      try {
+        if (desktop) {
+          await window.grafoDesktop.ai.save({ provider: provider.id, kind: provider.kind, base: provider.base, model: mdl, key });
+          ai.desktop = await window.grafoDesktop.ai.status();
+        } else {
+          storage.set('aiSettings', { provider: provider.id, model: mdl });
+          if (key || !provider.key) keyStore.set(provider.id, key, remember);
+          else if (has) keyStore.set(provider.id, keyStore.get(provider.id), remember);
+        }
+        ai.draftKey = '';
+        ai.draftModel = undefined;
+        ai.draftProvider = undefined;
+        ai.error = '';
+        this.toast('Conexão com a IA salva');
+      } catch (err) {
+        this.toast(err && err.message ? err.message : 'Não foi possível salvar');
+      }
+      this.renderLeft();
+    };
+    const forget = async () => {
+      if (desktop) {
+        await window.grafoDesktop.ai.clear();
+        ai.desktop = await window.grafoDesktop.ai.status();
+      } else keyStore.set(provider.id, '', false);
+      this.toast('Chave removida');
+      this.renderLeft();
+    };
+    s.append(el('div', { class: 'row', style: { marginTop: '8px' } }, el('button', { class: 'btn small primary', onclick: save }, 'Salvar'), has && provider.key ? el('button', { class: 'btn small ghost', onclick: forget }, 'Remover chave') : ''));
+    s.append(el('p', { class: 'hint', text: desktop
+      ? 'A chave fica guardada cifrada neste computador (proteção de dados do Windows) e só o app desktop a usa; o pedido vai direto para o provedor.'
+      : 'A chave fica só neste navegador (nesta sessão, ou guardada se marcar Lembrar) e vai direto para o provedor, sem passar por nenhum servidor do Grafo. Cada pedido usa créditos da sua conta no provedor.' }));
+    return s;
+  }
+
   textDiagramDialog(initial = '') {
     const ed = this.ed;
     let kind = 'auto';
@@ -2636,7 +2851,7 @@ export class UI {
       ['Trazer para frente / Enviar para trás', 'Ctrl+Shift+] / ['], ['Avançar / Recuar', 'Ctrl+] / ['], ['Alinhar (esq., centro, dir.)', 'Alt+A / Alt+H / Alt+D'], ['Alinhar (topo, meio, base)', 'Alt+W / Alt+V / Alt+S'], ['Distribuir', 'Ctrl+Alt+H / V'], ['Espelhar', 'Shift+H / Shift+V'], ['Mover 1 px / 10 px', 'Setas / Shift+Setas'], ['Opacidade 10%–100%', '1 … 0'],
       ['Mostrar/ocultar', 'Ctrl+Shift+H'], ['Bloquear', 'Ctrl+Shift+L'], ['Layout automático do diagrama', 'Ctrl+Shift+Y'],
       ['Ações rápidas', 'Ctrl+K ou Ctrl+P'], ['Medir distâncias', 'Alt sobre outro objeto'], ['Copiar / colar propriedades', 'Ctrl+Alt+C / Ctrl+Alt+Shift+V'], ['Organizar em grade', 'Ctrl+Alt+Shift+T'], ['Próxima / anterior camada', 'Tab / Shift+Tab'], ['Trocar preenchimento e contorno', 'Shift+X'], ['Duplicar repetindo o deslocamento', 'Ctrl+D após mover a cópia'], ['Renomear (em lote com várias)', 'F2'], ['Ajustar frame ao conteúdo', 'Ctrl+Alt+Shift+R'], ['Copiar como PNG', 'Ctrl+Shift+C'], ['Guias: criar / mostrar', 'Arrastar da régua / Shift+G'], ['Recolher camadas', 'Alt+L'],
-      ['Localizar / substituir', 'Ctrl+F / Ctrl+H'], ['Diagrama a partir de texto (Mermaid ou lista)', 'Ctrl+Alt+M'], ['Inserir tabela', 'Shift+T'], ['Conectar em sequência', 'Ctrl+Alt+X'], ['Grade de encaixe', "Ctrl+Shift+'"], ['Mover pela grade', 'Shift+Setas com a grade ligada'],
+      ['Criar com IA', 'Ctrl+Alt+I (Ctrl+Enter gera)'], ['Localizar / substituir', 'Ctrl+F / Ctrl+H'], ['Diagrama a partir de texto (Mermaid ou lista)', 'Ctrl+Alt+M'], ['Inserir tabela', 'Shift+T'], ['Conectar em sequência', 'Ctrl+Alt+X'], ['Grade de encaixe', "Ctrl+Shift+'"], ['Mover pela grade', 'Shift+Setas com a grade ligada'],
       ['Zoom', 'Ctrl+roda, Ctrl++ / Ctrl+-'], ['Ajustar tudo / seleção / 100%', 'Shift+1 / Shift+2 / Shift+0'], ['Réguas / Minimapa', 'Shift+R / Shift+M'], ['Grade de pixels', "Ctrl+'"], ['Contornos', 'Ctrl+Shift+O'], ['Ocultar interface', 'Ctrl+\\'], ['Tema', 'Alt+T'],
       ['Salvar cópia .grafo / Abrir', 'Ctrl+S / Ctrl+O'], ['Salvar versão', 'Ctrl+Alt+S'], ['Exportar', 'Ctrl+Shift+E'], ['Apresentar', 'Ctrl+Alt+Enter'], ['Atalhos', 'Ctrl+/'],
       ['Restringir ângulo e proporção', 'Shift ao arrastar'], ['Desenhar do centro', 'Alt ao arrastar'], ['Desligar encaixe', 'Ctrl ao arrastar'],

@@ -28,6 +28,7 @@ pub struct AppState {
     pub room_load: Mutex<()>,
     pub instance_id: String,
     pub local_rate: DashMap<String, (u64, u64)>,
+    pub ai_rate: DashMap<String, (u64, u64)>,
 }
 
 pub type Shared = Arc<AppState>;
@@ -66,6 +67,7 @@ impl AppState {
             room_load: Mutex::new(()),
             instance_id: Uuid::new_v4().simple().to_string(),
             local_rate: DashMap::new(),
+            ai_rate: DashMap::new(),
         })
     }
 }

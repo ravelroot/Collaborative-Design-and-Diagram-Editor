@@ -674,6 +674,91 @@ test('tabela, grade de encaixe, espaço entre itens e página vazia', async () =
   assert.match(await page.locator('.statusbar .save-state').textContent(), /Salv/);
 });
 
+test('área de IA: chave no navegador, diagrama UML pelo provedor, desfazer, erros e modelo local', async () => {
+  const spec = {
+    title: 'Sistema bancário',
+    nodes: [
+      { id: 'cliente', shape: 'umlClass', name: 'Cliente', attributes: ['- nome: String'], methods: ['+ abrirConta(): Conta'] },
+      { id: 'conta', shape: 'umlClass', name: 'Conta', stereotype: 'abstract', attributes: ['- saldo: Decimal'] },
+      { id: 'cc', shape: 'umlClass', name: 'ContaCorrente', attributes: ['- limite: Decimal'] },
+      { id: 'tx', shape: 'umlClass', name: 'Transacao', attributes: ['- valor: Decimal'] },
+    ],
+    edges: [
+      { from: 'cc', to: 'conta', type: 'inheritance' },
+      { from: 'cliente', to: 'conta', type: 'association', fromLabel: '1', toLabel: '1..*' },
+      { from: 'conta', to: 'tx', type: 'composition' },
+    ],
+  };
+  const calls = [];
+  let status = 200;
+  await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+    calls.push({ headers: route.request().headers(), body: JSON.parse(route.request().postData()) });
+    await route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(status === 200 ? { content: [{ type: 'tool_use', name: 'criar_diagrama', input: spec }] } : { error: { message: 'invalid x-api-key' } }) });
+  });
+  await page.evaluate(() => {
+    const g = window.grafo;
+    g.editor.setPage(g.store.addPage('IA'));
+  });
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Control+Alt+KeyI');
+  await page.waitForSelector('.ai-prompt');
+  await page.locator('.ai-prompt').fill('Diagrama de classes UML de um sistema bancário');
+  await page.locator('.ai-go').click();
+  assert.match(await page.locator('.ai-error').textContent(), /chave/);
+  await page.locator('input[aria-label="Chave de API"]').fill('sk-teste-e2e');
+  await page.locator('#leftPanel .btn.small.primary', { hasText: 'Salvar' }).click();
+  await page.waitForSelector('.ai-dot.on');
+  await page.locator('.ai-go').click();
+  await page.waitForSelector('.ai-result');
+  const made = await page.evaluate(() => {
+    const nodes = window.grafo.editor.pageNodes();
+    return { classes: nodes.filter((n) => n.shape === 'umlClass').map((n) => n.name).sort(), conns: nodes.filter((n) => n.type === 'connector').length, session: sessionStorage.getItem('grafo:aiKey:anthropic'), local: localStorage.getItem('grafo:aiKey:anthropic'), sel: window.grafo.editor.sel.size };
+  });
+  assert.deepEqual(made.classes, ['Cliente', 'Conta', 'ContaCorrente', 'Transacao']);
+  assert.equal(made.conns, 3);
+  assert.equal(made.sel, 4);
+  assert.equal(made.session, 'sk-teste-e2e');
+  assert.equal(made.local, null);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].headers['x-api-key'], 'sk-teste-e2e');
+  assert.equal(calls[0].headers['anthropic-dangerous-direct-browser-access'], 'true');
+  assert.equal(calls[0].body.tool_choice.name, 'criar_diagrama');
+  assert.equal(calls[0].body.messages[0].content, 'Diagrama de classes UML de um sistema bancário');
+  assert.match(await page.locator('.ai-history').first().textContent(), /sistema bancário/);
+  await page.locator('.ai-result .btn', { hasText: 'Desfazer' }).click();
+  assert.equal(await page.evaluate(() => window.grafo.editor.pageNodes().length), 0);
+  status = 401;
+  await page.locator('.ai-go').click();
+  await page.waitForSelector('.ai-error');
+  assert.match(await page.locator('.ai-error').textContent(), /recusou a chave/);
+  assert.equal(await page.evaluate(() => window.grafo.editor.pageNodes().length), 0);
+  await page.unroute('https://api.anthropic.com/v1/messages');
+  let local = null;
+  await page.route('http://localhost:11434/v1/chat/completions', async (route) => {
+    local = JSON.parse(route.request().postData());
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ choices: [{ message: { content: 'Segue: ' + JSON.stringify({ title: 'Login', layout: 'manual', nodes: [{ id: 'tela', shape: 'uiPhone', x: 0, y: 0, w: 390, h: 844 }, { id: 'ok', shape: 'uiButton', text: 'Entrar', x: 40, y: 700, w: 310, h: 48 }], edges: [] }) } }] }) });
+  });
+  await page.locator('#leftPanel select[aria-label="aiprov"]').selectOption('ollama');
+  await page.locator('#leftPanel .btn.small.primary', { hasText: 'Salvar' }).click();
+  await page.locator('.ai-prompt').fill('Tela de login de um app');
+  await page.locator('.ai-go').click();
+  await page.waitForSelector('.ai-result');
+  await page.unroute('http://localhost:11434/v1/chat/completions');
+  assert.equal(local.response_format.type, 'json_object');
+  assert.equal(local.model, 'llama3.1');
+  const screen = await page.evaluate(() => {
+    const nodes = window.grafo.editor.pageNodes();
+    const phone = nodes.find((n) => n.shape === 'uiPhone');
+    const btn = nodes.find((n) => n.shape === 'uiButton');
+    return { parent: btn.parent === phone.id, dx: btn.x - phone.x, dy: btn.y - phone.y };
+  });
+  assert.deepEqual(screen, { parent: true, dx: 40, dy: 700 });
+  await page.evaluate(() => {
+    sessionStorage.clear();
+    localStorage.removeItem('grafo:aiSettings');
+  });
+});
+
 test('Tab não cobre o canvas com a camada de acessibilidade do PixiJS', async () => {
   await page.locator('#overlay').focus();
   await page.keyboard.press('Escape');

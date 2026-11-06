@@ -3,7 +3,7 @@ import { SHAPES, shapeDef, flattenD, nodeParts } from './shapes.js';
 import { corners, aabb, union, intersects, contains, toLocal, rotatePoint, hitNode, isContainer, hasText, nodeBounds, anchorOf, nearestAnchor, connectorRoute, fitText, layoutText, fontCss, textBox, resolveText } from './geom.js';
 import { Engine } from './engine/index.js';
 import { LOCAL } from './doc.js';
-import { layoutTree } from './templates.js';
+import { layoutTree, applyBoard } from './templates.js';
 import { toMermaid, labelSize } from './textdiagram.js';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
@@ -3134,6 +3134,29 @@ export class Editor {
     this.select(nodeIds);
     this.zoomToSelection();
     return { nodes: nodeIds.length, edges: created.length - nodeIds.length - groupBoxes.length, groups: groupBoxes.length, ids: created };
+  }
+
+  insertBoard(items, at = this.viewportCenter()) {
+    if (!items || !items.length) return [];
+    let ids = [];
+    this.stopCapture();
+    this.commit(() => {
+      ids = applyBoard(this.store, this.page, items, { measure: (n) => fitText(n, this.store), z0: this.store.nextZ(null, this.page) - 1 });
+      const tops = ids.map((id) => this.store.get(id)).filter((n) => n && !n.parent && n.type !== 'connector');
+      const b = union(tops.map((n) => nodeBounds(n, this.store)));
+      if (b) {
+        const dx = Math.round(at.x - (b.x + b.w / 2));
+        const dy = Math.round(at.y - (b.y + b.h / 2));
+        for (const n of tops) this.translate(this.store.get(n.id), dx, dy);
+      }
+    });
+    const tops = ids.filter((id) => {
+      const n = this.store.get(id);
+      return n && !n.parent && n.type !== 'connector';
+    });
+    this.select(tops);
+    this.zoomToSelection();
+    return ids;
   }
 
   mermaidFor(ids = null) {

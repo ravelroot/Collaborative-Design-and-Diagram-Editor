@@ -4,6 +4,8 @@ import { performance } from 'node:perf_hooks';
 import * as Y from 'yjs';
 import { calc, parseCSV, normHex, safeName, escapeXml, hexToNum, numToHex, toHex } from '../../web/src/util.js';
 import { measureGaps, gridLayout, findMatches, replaceIn, sequenceOrder, tableCells, GRID_SIZES } from '../../web/src/editor.js';
+import { AI_PROVIDERS, AI_ORIGINS, AI_LIMITS, SPEC_SCHEMA, buildRequest, parseResponse, normalizeSpec, specToBoard, extractJSON, systemPrompt, summarize } from '../../web/src/ai.js';
+import { readFileSync } from 'node:fs';
 import { parseMermaid, parseOutline, parseTextDiagram, detectTextDiagram, toMermaid, labelSize } from '../../web/src/textdiagram.js';
 import { TEMPLATES, TEMPLATE_CATEGORIES, PATTERN_TEMPLATES, AULA_STARTS, buildBoard, applyBoard, aulaStart, boardPreview } from '../../web/src/templates.js';
 import { SHAPES, nodeParts, parseD, flattenD, pathD } from '../../web/src/shapes.js';
@@ -261,6 +263,113 @@ describe('diagrama a partir de texto', () => {
     assert.equal(back.edges[1].dotted, true);
     const s = labelSize('um rótulo bem comprido que passa de uma linha', { w: 140, h: 70 });
     assert.ok(s.w > 140 && s.w <= 300 && s.h >= 70);
+  });
+});
+
+describe('área de IA', () => {
+  const bank = {
+    title: 'Banco',
+    nodes: [
+      { id: 'cliente', shape: 'umlClass', name: 'Cliente', attributes: ['- nome: String'], methods: ['+ abrirConta(): Conta'] },
+      { id: 'conta', shape: 'umlClass', name: 'Conta', stereotype: 'abstract', attributes: ['- saldo: Decimal'] },
+      { id: 'cc', shape: 'nao-existe', name: 'ContaCorrente', attributes: ['- limite: Decimal'] },
+      { id: 'aud', shape: 'umlClass', stereotype: 'interface', name: 'Auditavel', methods: ['+ auditar(): void'] },
+      { id: 'cliente', shape: 'process', text: 'Duplicado', color: 'wine' },
+      'lixo',
+    ],
+    edges: [
+      { from: 'cc', to: 'conta', type: 'inheritance' },
+      { from: 'cliente', to: 'conta', type: 'association', label: 'possui', fromLabel: '1', toLabel: '1..*' },
+      { from: 'conta', to: 'aud', type: 'realization' },
+      { from: 'conta', to: 'fantasma', type: 'flow' },
+      { from: 'conta', to: 'conta', type: 'flow' },
+      { from: 'cliente', to: 'cc', type: 'inventado' },
+    ],
+    groups: [{ title: 'Contas', members: ['conta', 'cc', 'fantasma'] }],
+  };
+
+  test('normaliza o diagrama da IA com UML, ids repetidos, formas e ligações inválidas', () => {
+    const spec = normalizeSpec(bank);
+    assert.equal(spec.nodes.length, 5);
+    assert.deepEqual(spec.nodes.map((n) => n.shape), ['umlClass', 'umlClass', 'umlClass', 'umlInterface', 'process']);
+    assert.equal(spec.nodes[0].text, 'Cliente\n- nome: String\n+ abrirConta(): Conta');
+    assert.equal(spec.nodes[1].text.split('\n')[0], '«abstract» Conta');
+    assert.equal(spec.nodes[3].text.split('\n')[0], '«interface» Auditavel');
+    assert.equal(spec.nodes[4].key, 'cliente_2');
+    assert.equal(spec.nodes[4].fill, '#5D1C16');
+    assert.equal(spec.edges.length, 4);
+    assert.equal(spec.edges[0].endCap, 'triangle');
+    assert.equal(spec.edges[1].label, '1  ·  possui  ·  1..*');
+    assert.equal(spec.edges[2].dash, true);
+    assert.equal(spec.edges[3].type, 'flow');
+    assert.deepEqual(spec.groups, [{ keys: ['conta', 'cc'], label: 'Contas' }]);
+    assert.equal(summarize(spec), '5 formas e 4 conexões');
+    assert.throws(() => normalizeSpec({ nodes: [] }), /formas/);
+    assert.throws(() => normalizeSpec('texto'), /formas/);
+    const big = normalizeSpec({ nodes: Array.from({ length: 200 }, (_, i) => ({ id: 'n' + i, shape: 'process', text: 'x'.repeat(5000) })), edges: Array.from({ length: 400 }, (_, i) => ({ from: 'n' + (i % 50), to: 'n' + ((i % 50) + 1), type: 'flow' })) });
+    assert.equal(big.nodes.length, AI_LIMITS.nodes);
+    assert.equal(big.edges.length, AI_LIMITS.edges);
+    assert.ok(big.nodes.every((n) => n.text.length <= AI_LIMITS.text));
+    assert.equal(big.warnings.length, 2);
+  });
+
+  test('o diagrama da IA vira formas e conectores de verdade no documento', () => {
+    const st = newStore();
+    const page = st.pages.get(0);
+    const items = specToBoard(normalizeSpec(bank));
+    const ids = st.transact(() => applyBoard(st, page, items));
+    const nodes = ids.map((id) => st.get(id));
+    const shapes = nodes.filter((n) => n.type === 'shape');
+    const conns = nodes.filter((n) => n.type === 'connector');
+    assert.equal(shapes.filter((n) => n.shape !== 'boundary').length, 5);
+    assert.equal(conns.length, 4);
+    assert.ok(conns.every((c) => st.get(c.from.node) && st.get(c.to.node)));
+    assert.ok(nodes.some((n) => n.name === 'Conta'));
+    assert.ok(nodes.some((n) => n.name === 'Auditavel'));
+    assert.ok(conns.some((c) => c.dash && c.endCap === 'triangle'));
+    const manual = specToBoard(normalizeSpec({ title: 'Login', layout: 'manual', nodes: [{ id: 'tela', shape: 'uiPhone', x: 0, y: 0, w: 390, h: 844 }, { id: 'btn', shape: 'uiButton', text: 'Entrar', x: 40, y: 700, w: 310, h: 48 }], edges: [] }));
+    const btn = manual.find((it) => it.key === 'btn');
+    assert.deepEqual([btn.x, btn.y, btn.w, btn.h], [40, 700, 310, 48]);
+  });
+
+  test('pedidos para cada provedor e leitura das respostas', () => {
+    const a = buildRequest('anthropic', { prompt: 'banco', model: 'm' });
+    assert.equal(a.tool_choice.name, 'criar_diagrama');
+    assert.equal(a.tools[0].input_schema, SPEC_SCHEMA);
+    assert.equal(a.messages[0].content, 'banco');
+    const o = buildRequest('openai', { prompt: 'x'.repeat(9000), model: 'm' });
+    assert.equal(o.tool_choice.function.name, 'criar_diagrama');
+    assert.equal(o.messages[1].content.length, AI_LIMITS.prompt);
+    const j = buildRequest('openai', { prompt: 'banco', model: 'm', json: true });
+    assert.equal(j.response_format.type, 'json_object');
+    assert.match(j.messages[0].content, /somente com um objeto JSON/);
+    assert.match(systemPrompt(), /umlClass \(Classe\)/);
+    const spec = { title: 'T', nodes: [{ id: 'a', shape: 'process' }], edges: [] };
+    assert.deepEqual(parseResponse('anthropic', 200, { content: [{ type: 'text', text: 'ok' }, { type: 'tool_use', input: spec }] }), spec);
+    assert.deepEqual(parseResponse('anthropic', 200, { content: [{ type: 'text', text: 'Aqui está: ```json\n' + JSON.stringify(spec) + '\n```' }] }), spec);
+    assert.deepEqual(parseResponse('openai', 200, { choices: [{ message: { tool_calls: [{ function: { arguments: JSON.stringify(spec) } }] } }] }), spec);
+    assert.deepEqual(parseResponse('openai', 200, { choices: [{ message: { content: 'texto ' + JSON.stringify(spec) + ' fim' } }] }), spec);
+    assert.throws(() => parseResponse('anthropic', 401, { error: { message: 'invalid x-api-key' } }), /recusou a chave/);
+    assert.throws(() => parseResponse('openai', 429, {}), /Limite de uso/);
+    assert.throws(() => parseResponse('openai', 200, { choices: [{ message: { content: 'não sei' }, finish_reason: 'length' }] }), /grande demais/);
+    assert.throws(() => parseResponse('anthropic', 200, { content: [] }), /não devolveu/);
+    assert.equal(extractJSON('{"a": 1'), null);
+    assert.equal(extractJSON('sem json'), null);
+    assert.deepEqual(extractJSON('x {"a": "}{", "b": {"c": 1}} y'), { a: '}{', b: { c: 1 } });
+  });
+
+  test('a CSP libera só os provedores de IA conhecidos em todos os modos', () => {
+    assert.ok(AI_PROVIDERS.every((p) => AI_ORIGINS.includes(new URL(p.base).origin)));
+    assert.ok(AI_ORIGINS.every((o) => /^https:\/\/[a-z.]+$|^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(o)));
+    const rust = readFileSync(new URL('../../server/src/security.rs', import.meta.url), 'utf8');
+    const csp = rust.match(/APP_CSP: &str = "([^"]+)"/)[1];
+    for (const o of AI_ORIGINS) assert.ok(csp.includes(o), o);
+    assert.match(readFileSync(new URL('../../scripts/build-portable.mjs', import.meta.url), 'utf8'), /connect-src \$\{AI_ORIGINS/);
+    assert.match(readFileSync(new URL('../../scripts/serve.mjs', import.meta.url), 'utf8'), /AI_ORIGINS\.join/);
+    const desktop = readFileSync(new URL('../../desktop/ai_windows.go', import.meta.url), 'utf8');
+    for (const p of AI_PROVIDERS) assert.ok(desktop.includes(`"${p.id}"`) && desktop.includes(p.base), p.id);
+    const server = readFileSync(new URL('../../server/src/ai.rs', import.meta.url), 'utf8');
+    for (const p of AI_PROVIDERS) assert.ok(server.includes(`id: "${p.id}"`) && server.includes(p.base) && server.includes(`"${p.model}"`), p.id);
   });
 });
 
