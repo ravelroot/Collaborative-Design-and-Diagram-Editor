@@ -6,6 +6,7 @@ import { connectorRoute, layoutText, hasText, isContainer, polylineMid, outlineO
 import { hexToNum, storage } from './util.js';
 import { Engine } from './engine/index.js';
 
+
 const BLENDS = new Set(['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity', 'add']);
 
 const tracePath = (g, d, ox = 0, oy = 0) => {
@@ -99,6 +100,7 @@ export class Renderer {
       }
     }
     if (!ok) throw new Error('Sem suporte a WebGPU ou WebGL2');
+    if (this.app.renderer.accessibility) this.app.renderer.accessibility.destroy();
     this.app.ticker.stop();
     this.backend = this.app.renderer.name === 'webgpu' || this.app.renderer.type === 2 ? 'WebGPU' : 'WebGL2';
     this.app.canvas.className = 'stage';

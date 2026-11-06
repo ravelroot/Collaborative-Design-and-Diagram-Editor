@@ -4,6 +4,7 @@ import { corners, aabb, union, intersects, contains, toLocal, rotatePoint, hitNo
 import { Engine } from './engine/index.js';
 import { LOCAL } from './doc.js';
 import { layoutTree } from './templates.js';
+import { toMermaid, labelSize } from './textdiagram.js';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 const HANDLE_POS = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s: [0.5, 1], sw: [0, 1], w: [0, 0.5] };
@@ -41,6 +42,70 @@ const FRAME_FILL = { type: 'solid', color: '#FFFFFF', alpha: 1 };
 const DIAGRAM_FILL = { type: 'solid', color: '#FAF6EF', alpha: 1 };
 const DIAGRAM_STROKE = { color: '#5C4034', alpha: 1 };
 const STICKY_COLORS = ['#F6E4A6', '#D6BDB8', '#A3B4BE', '#C9D3A8', '#E6DDCE'];
+export const GRID_SIZES = [4, 8, 10, 12, 16, 20, 24, 32, 40, 50];
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const matcher = (query, { matchCase = false, wholeWord = false } = {}) => {
+  const q = String(query || '');
+  if (!q) return null;
+  const edge = wholeWord ? ['(?<![\\p{L}\\p{N}_])', '(?![\\p{L}\\p{N}_])'] : ['', ''];
+  try {
+    return new RegExp(edge[0] + escapeRe(q) + edge[1], matchCase ? 'gu' : 'giu');
+  } catch {
+    return new RegExp(escapeRe(q), matchCase ? 'g' : 'gi');
+  }
+};
+
+export const findMatches = (nodes, query, opts = {}) => {
+  const re = matcher(query, opts);
+  if (!re) return [];
+  const out = [];
+  for (const n of nodes) {
+    if (typeof n.text !== 'string' || !n.text) continue;
+    const hits = n.text.match(re);
+    if (hits) out.push({ id: n.id, page: n.page, count: hits.length });
+  }
+  return out;
+};
+
+export const replaceIn = (text, query, replacement, opts = {}) => {
+  const re = matcher(query, opts);
+  return re ? String(text).replace(re, () => String(replacement ?? '')) : text;
+};
+
+export const sequenceOrder = (boxes) => {
+  const b = union(boxes);
+  const horiz = b && b.w >= b.h;
+  return boxes.map((x, i) => ({ i, x })).sort((p, q) => {
+    const a = horiz ? p.x.x + p.x.w / 2 - (q.x.x + q.x.w / 2) : p.x.y + p.x.h / 2 - (q.x.y + q.x.h / 2);
+    if (Math.abs(a) > 0.5) return a;
+    return horiz ? p.x.y - q.x.y : p.x.x - q.x.x;
+  }).map((o) => o.i);
+};
+
+export const tableCells = (rows, cols, { header = true, data = null, cellW = 140, cellH = 40 } = {}) => {
+  const r = clamp(Math.round(rows), 1, 200);
+  const c = clamp(Math.round(cols), 1, 24);
+  const widths = Array.from({ length: c }, (_, j) => {
+    if (!data) return cellW;
+    let longest = 0;
+    for (let i = 0; i < r; i++) longest = Math.max(longest, ...String(data[i]?.[j] ?? '').split('\n').map((l) => l.length));
+    return clamp(Math.round(longest * 7.4 + 28), 72, 320);
+  });
+  const cells = [];
+  let y = 0;
+  for (let i = 0; i < r; i++) {
+    let x = 0;
+    for (let j = 0; j < c; j++) {
+      const head = header && i === 0;
+      const text = data ? String(data[i]?.[j] ?? '') : head ? `Coluna ${j + 1}` : '';
+      cells.push({ row: i, col: j, x, y, w: widths[j], h: cellH, head, text });
+      x += widths[j];
+    }
+    y += cellH;
+  }
+  return { cells, w: widths.reduce((a, b) => a + b, 0), h: r * cellH };
+};
 const FLIPPABLE = new Set(['rect', 'ellipse', 'polygon', 'star', 'shape', 'image']);
 const SIDE_FLIP = { h: { left: 'right', right: 'left' }, v: { top: 'bottom', bottom: 'top' } };
 export const STYLE_KEYS = ['fill', 'fillStyle', 'stroke', 'strokeWidth', 'strokeAlign', 'dash', 'radius', 'opacity', 'blend', 'effects', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textDecoration', 'lineHeight', 'letterSpacing', 'textColor', 'align', 'valign', 'textStyle', 'textCase'];
@@ -554,7 +619,18 @@ export class Editor {
   }
 
   px(v) {
+    if (this.settings.snapGrid) return this.gridRound(v);
     return this.settings.pixelSnap ? Math.round(v) : round(v);
+  }
+
+  gridStep() {
+    const g = Number(this.settings.gridSize) || 8;
+    return clamp(g, 1, 500);
+  }
+
+  gridRound(v) {
+    const g = this.gridStep();
+    return Math.round(v / g) * g;
   }
 
   containerAt(wx, wy, exclude) {
@@ -1109,7 +1185,12 @@ export class Editor {
       nb.x = Math.round(nb.x);
       nb.y = Math.round(nb.y);
     }
-    const snap = e.ctrlKey || e.metaKey ? { dx: 0, dy: 0, guides: [] } : this.snapBox(nb, d.cand);
+    const free = e.ctrlKey || e.metaKey;
+    const snap = free ? { dx: 0, dy: 0, guides: [] } : this.snapBox(nb, d.cand);
+    if (this.settings.snapGrid && !free) {
+      if (!snap.dx) nb.x = this.gridRound(nb.x);
+      if (!snap.dy) nb.y = this.gridRound(nb.y);
+    }
     dx = nb.x + snap.dx - b.x;
     dy = nb.y + snap.dy - b.y;
     this.guides = snap.guides;
@@ -1172,6 +1253,12 @@ export class Editor {
         if (axes.y[0] === 0) { nbx.y += s.dy; nbx.h -= s.dy; }
         if (axes.y[0] === 1) nbx.h += s.dy;
         this.guides = s.guides;
+        if (this.settings.snapGrid) {
+          if (axes.x[0] === 0 && !s.dx) { const nx = this.gridRound(nbx.x); nbx.w += nbx.x - nx; nbx.x = nx; }
+          if (axes.x[0] === 1 && !s.dx) nbx.w = this.gridRound(nbx.x + nbx.w) - nbx.x;
+          if (axes.y[0] === 0 && !s.dy) { const ny = this.gridRound(nbx.y); nbx.h += nbx.y - ny; nbx.y = ny; }
+          if (axes.y[0] === 1 && !s.dy) nbx.h = this.gridRound(nbx.y + nbx.h) - nbx.y;
+        }
       }
       return this.applyResize(d, nbx, nw < 0, nh < 0);
     }
@@ -2020,6 +2107,7 @@ export class Editor {
         c.strokeRect(s.x - 4, s.y - 4, 8, 8);
       }
     }
+    if (this.settings.snapGrid) this.drawSnapGrid(c, th);
     if (this.settings.grid && z >= 4) {
       const vp = this.r.viewport();
       c.strokeStyle = rgba(th.text, 0.08);
@@ -2036,6 +2124,27 @@ export class Editor {
         c.lineTo(vp.w * z, s);
       }
       c.stroke();
+    }
+  }
+
+  drawSnapGrid(c, th) {
+    const z = this.zoom;
+    let step = this.gridStep();
+    while (step * z < 8) step *= 2;
+    const vp = this.r.viewport();
+    const x0 = Math.floor(vp.x / step) * step;
+    const y0 = Math.floor(vp.y / step) * step;
+    const cols = Math.ceil(vp.w / step) + 1;
+    const rows = Math.ceil(vp.h / step) + 1;
+    if (cols * rows > 60000) return;
+    c.fillStyle = rgba(th.text, 0.22);
+    const r = z * step >= 24 ? 1.5 : 1;
+    for (let i = 0; i < cols; i++) {
+      const sx = Math.round((x0 + i * step - this.camX) * z);
+      for (let j = 0; j < rows; j++) {
+        const sy = Math.round((y0 + j * step - this.camY) * z);
+        c.fillRect(sx - r / 2, sy - r / 2, r, r);
+      }
     }
   }
 
@@ -2941,6 +3050,196 @@ export class Editor {
       };
       requestAnimationFrame(step);
     });
+  }
+
+  insertDiagram(model, at = this.viewportCenter()) {
+    if (!model || !model.nodes || !model.nodes.length) return null;
+    const vertical = model.dir === 'TD' || model.dir === 'BT';
+    const sizes = model.nodes.map((n) => {
+      const def = shapeDef(n.shape);
+      const base = n.shape === 'ellipse' ? { w: 90, h: 90 } : n.shape === 'decision' ? { w: 150, h: 100 } : { w: def.w || 140, h: def.h || 70 };
+      const sz = labelSize(n.label, base);
+      if (n.shape === 'ellipse' || n.shape === 'decision') sz.h = Math.max(sz.h, Math.round(sz.w * (n.shape === 'ellipse' ? 1 : 0.66)));
+      if (n.shape === 'ellipse') sz.w = sz.h = Math.max(sz.w, sz.h);
+      return sz;
+    });
+    const index = new Map(model.nodes.map((n, i) => [n.id, i]));
+    const edges = model.edges.map((e) => [index.get(e.from), index.get(e.to)]).filter(([a, b]) => a !== undefined && b !== undefined && a !== b);
+    let pos;
+    try {
+      pos = Engine.layoutLayered(sizes, edges, vertical ? 0 : 1, vertical ? 60 : 70, vertical ? 70 : 60);
+    } catch {
+      pos = sizes.map((s, i) => ({ x: (i % 6) * 200, y: Math.floor(i / 6) * 140 }));
+    }
+    const boxes = pos.map((p, i) => ({ x: p.x, y: p.y, w: sizes[i].w, h: sizes[i].h }));
+    const all = union(boxes);
+    if (model.dir === 'BT') for (const b of boxes) b.y = all.y + all.h - (b.y - all.y) - b.h;
+    if (model.dir === 'RL') for (const b of boxes) b.x = all.x + all.w - (b.x - all.x) - b.w;
+    const ox = at.x - (all.x + all.w / 2);
+    const oy = at.y - (all.y + all.h / 2);
+    for (const b of boxes) {
+      b.x = this.px(b.x + ox);
+      b.y = this.px(b.y + oy);
+    }
+    const groupBoxes = [];
+    for (const g of model.groups || []) {
+      const members = g.members.map((id) => index.get(id)).filter((i) => i !== undefined);
+      if (!members.length) continue;
+      const inner = union(members.map((i) => boxes[i]));
+      const box = { x: inner.x - 28, y: inner.y - 44, w: inner.w + 56, h: inner.h + 72 };
+      const memberSet = new Set(members);
+      const clash = boxes.some((b, i) => !memberSet.has(i) && intersects(b, box));
+      if (!clash) groupBoxes.push({ title: g.title, box, members: memberSet });
+    }
+    const created = [];
+    const nodeIds = [];
+    this.commit(() => {
+      const owner = new Map();
+      const sectionIds = [];
+      groupBoxes.forEach((g, gi) => {
+        const parentGroup = groupBoxes.slice(0, gi).reverse().find((o) => contains(o.box, g.box));
+        const sid = this.store.add({ type: 'section', page: this.page, parent: parentGroup ? sectionIds[groupBoxes.indexOf(parentGroup)] : null, name: g.title || 'Grupo', text: g.title || 'Grupo', ...g.box, fill: { type: 'solid', color: '#E6DDCE', alpha: 0.45 }, stroke: { color: '#A8977F', alpha: 1 }, strokeWidth: 1, radius: 8, fontSize: 14, fontWeight: 600 });
+        sectionIds.push(sid);
+        created.push(sid);
+        for (const m of g.members) owner.set(m, sid);
+      });
+      model.nodes.forEach((n, i) => {
+        const b = boxes[i];
+        const root = model.kind === 'outline' && n.depth === 0;
+        const id = this.store.add({
+          type: 'shape',
+          shape: SHAPES[n.shape] ? n.shape : 'process',
+          page: this.page,
+          parent: owner.get(i) || null,
+          name: String(n.label || n.id).split('\n')[0].slice(0, 60) || 'Forma',
+          ...b,
+          fill: root ? { type: 'solid', color: '#F6E4A6', alpha: 1 } : { ...DIAGRAM_FILL },
+          stroke: { ...DIAGRAM_STROKE },
+          strokeWidth: 1.5,
+          text: n.label ?? '',
+          fontSize: root ? 16 : 14,
+          fontWeight: root ? 700 : 400,
+        });
+        nodeIds.push(id);
+        created.push(id);
+      });
+      for (const e of model.edges) {
+        const a = nodeIds[index.get(e.from)];
+        const b = nodeIds[index.get(e.to)];
+        if (!a || !b || a === b) continue;
+        const cid = this.store.add({ type: 'connector', page: this.page, parent: null, name: 'Conector', x: 0, y: 0, w: 0, h: 0, from: { node: a, side: 'auto' }, to: { node: b, side: 'auto' }, routing: model.kind === 'outline' ? 'curved' : 'elbow', startCap: e.startCap || 'none', endCap: e.endCap || 'none', stroke: { color: '#5C4034', alpha: 1 }, strokeWidth: e.thick ? 3 : 1.6, ...(e.dotted ? { dash: [6, 4] } : {}), text: e.label || '' });
+        created.push(cid);
+      }
+    });
+    this.select(nodeIds);
+    this.zoomToSelection();
+    return { nodes: nodeIds.length, edges: created.length - nodeIds.length - groupBoxes.length, groups: groupBoxes.length, ids: created };
+  }
+
+  mermaidFor(ids = null) {
+    const pool = ids && ids.length ? [...this.movingSet(ids)].map((id) => this.store.get(id)).filter(Boolean) : this.pageNodes();
+    const shapes = pool.filter((n) => n.type !== 'connector' && n.type !== 'section' && n.type !== 'frame' && n.type !== 'group' && n.type !== 'component' && (n.type === 'shape' || n.type === 'sticky' || n.type === 'rect' || n.type === 'ellipse' || n.type === 'text' || n.type === 'instance'));
+    const keep = new Set(shapes.map((n) => n.id));
+    const conns = this.pageNodes().filter((c) => c.type === 'connector' && keep.has(c.from?.node) && keep.has(c.to?.node));
+    if (!shapes.length) return '';
+    return toMermaid(shapes, conns, (n) => resolveText(n, this.store) || n.name || '');
+  }
+
+  connectSelection() {
+    const sel = this.selection.filter((n) => n.type !== 'connector' && !this.isLocked(n));
+    if (sel.length < 2) {
+      this.emit({ toast: 'Selecione duas ou mais formas para conectar' });
+      return [];
+    }
+    const order = sequenceOrder(sel.map((n) => nodeBounds(n, this.store))).map((i) => sel[i]);
+    const existing = new Set(this.pageNodes().filter((c) => c.type === 'connector' && c.from?.node && c.to?.node).map((c) => c.from.node + '>' + c.to.node));
+    const out = [];
+    this.commit(() => {
+      for (let i = 1; i < order.length; i++) {
+        const a = order[i - 1].id;
+        const b = order[i].id;
+        if (existing.has(a + '>' + b) || existing.has(b + '>' + a)) continue;
+        out.push(this.store.add(this.newConnector({ node: a, side: 'auto' }, { node: b, side: 'auto' }, 'connector')));
+      }
+    });
+    this.emit({ toast: out.length ? `${out.length} ${out.length === 1 ? 'conector criado' : 'conectores criados'}` : 'As formas já estão conectadas' });
+    return out;
+  }
+
+  insertTable({ rows = 4, cols = 3, header = true, data = null, name = 'Tabela', at = this.viewportCenter() } = {}) {
+    const t = tableCells(rows, cols, { header, data });
+    const x0 = this.px(at.x - t.w / 2);
+    const y0 = this.px(at.y - t.h / 2);
+    const parent = this.containerAt(at.x, at.y);
+    let frameId = null;
+    this.commit(() => {
+      frameId = this.store.add({ type: 'frame', page: this.page, parent: parent?.id || null, name, x: x0, y: y0, w: t.w, h: t.h, fill: { type: 'solid', color: '#FFFFFF', alpha: 1 }, stroke: { color: '#A8977F', alpha: 1 }, strokeWidth: 1, clip: true, radius: 6, table: { rows: Math.max(1, Math.round(rows)), cols: Math.max(1, Math.round(cols)), header: !!header } });
+      for (const c of t.cells) {
+        this.store.add({ type: 'shape', shape: 'rect', page: this.page, parent: frameId, name: `Célula ${c.row + 1}·${c.col + 1}`, x: x0 + c.x, y: y0 + c.y, w: c.w, h: c.h, fill: c.head ? { type: 'solid', color: '#E6DDCE', alpha: 1 } : { type: 'solid', color: c.row % 2 ? '#FAF6EF' : '#FFFFFF', alpha: 1 }, stroke: { color: '#CDBFA9', alpha: 1 }, strokeWidth: 1, text: c.text, fontSize: 13, fontWeight: c.head ? 600 : 400, align: 'left', valign: 'middle', cell: { row: c.row, col: c.col } });
+      }
+    });
+    this.select([frameId]);
+    return frameId;
+  }
+
+  spaceEvenly(axis, gap) {
+    const sel = this.selection.filter((n) => n.type !== 'connector' && !this.isLocked(n));
+    if (sel.length < 2 || !Number.isFinite(gap)) return;
+    const items = sel.map((n) => ({ n, b: nodeBounds(n, this.store) })).sort((a, b) => (axis === 'h' ? a.b.x - b.b.x : a.b.y - b.b.y));
+    let pos = axis === 'h' ? items[0].b.x : items[0].b.y;
+    this.commit(() => {
+      for (const it of items) {
+        if (axis === 'h') this.translate(it.n, round(pos - it.b.x), 0);
+        else this.translate(it.n, 0, round(pos - it.b.y));
+        pos += (axis === 'h' ? it.b.w : it.b.h) + gap;
+      }
+    });
+  }
+
+  selectionGap(axis) {
+    const sel = this.selection.filter((n) => n.type !== 'connector');
+    if (sel.length < 2) return null;
+    const items = sel.map((n) => nodeBounds(n, this.store)).sort((a, b) => (axis === 'h' ? a.x - b.x : a.y - b.y));
+    const gaps = [];
+    for (let i = 1; i < items.length; i++) gaps.push(axis === 'h' ? items[i].x - (items[i - 1].x + items[i - 1].w) : items[i].y - (items[i - 1].y + items[i - 1].h));
+    const first = round(gaps[0]);
+    return first >= 0 && gaps.every((g) => Math.abs(g - first) < 0.5) ? first : NaN;
+  }
+
+  findText(query, { matchCase = false, wholeWord = false, allPages = false } = {}) {
+    const order = new Map(this.store.pages.toArray().map((p, i) => [p, i]));
+    const nodes = [...this.store.nodes.values()].filter((n) => (allPages ? order.has(n.page) : n.page === this.page));
+    const z = (n) => nodeBounds(n, this.store);
+    return findMatches(nodes, query, { matchCase, wholeWord }).sort((a, b) => {
+      const pa = order.get(a.page) ?? 0;
+      const pb = order.get(b.page) ?? 0;
+      if (pa !== pb) return pa - pb;
+      const ba = z(this.store.get(a.id));
+      const bb = z(this.store.get(b.id));
+      return Math.abs(ba.y - bb.y) > 4 ? ba.y - bb.y : ba.x - bb.x;
+    });
+  }
+
+  replaceText(ids, query, replacement, opts = {}) {
+    const editable = ids.filter((id) => {
+      const n = this.store.get(id);
+      return n && typeof n.text === 'string' && !this.isLocked(n);
+    });
+    if (!editable.length) return 0;
+    this.setProp((n) => {
+      const next = replaceIn(n.text, query, replacement, opts).slice(0, 20000);
+      return next === n.text ? null : { text: next };
+    }, editable);
+    return editable.length;
+  }
+
+  focusNode(id) {
+    const n = this.store.get(id);
+    if (!n) return;
+    if (n.page !== this.page) this.setPage(n.page);
+    this.select([id]);
+    const b = nodeBounds(n, this.store);
+    this.zoomTo(b, true, Math.max(1, this.zoom));
   }
 
   selectAll() {

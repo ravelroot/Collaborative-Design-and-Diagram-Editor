@@ -2,6 +2,35 @@
 
 Todas as mudanças importantes do Grafo ficam registradas aqui.
 
+## [1.3.0] - 2026-11-06
+
+### Adicionado
+
+- **Diagrama a partir de texto** (Arquivo → Diagrama a partir de texto…, Ctrl+Alt+M): lê fluxogramas em **Mermaid** (`graph`/`flowchart` com `TD`, `LR`, `BT` e `RL`; nós `[ ]`, `( )`, `([ ])`, `[[ ]]`, `[( )]`, `(( ))`, `{ }`, `{{ }}`, `[/ /]` e `> ]`; setas `-->`, `---`, `-.->` e `==>`; rótulos `|texto|` e `-- texto -->`; `&` e `subgraph`) ou uma **lista com recuo**, mostra a contagem antes de inserir e desenha tudo organizado em camadas, com seções para os grupos.
+- **Copiar como Mermaid** (menu Arquivo e clique direito): exporta a seleção ou a página como `flowchart`, mantendo tipos de forma, rótulos e estilos de seta.
+- **Localizar e substituir** (Ctrl+F / Ctrl+H): busca em todas as páginas ou só na atual, com maiúsculas e palavra inteira opcionais; Enter vai ao próximo resultado, troca de página e centraliza; substituir em uma camada ou em todas com um só desfazer.
+- **Inserir tabela** (Shift+T, menu Objeto e clique direito) e **Tabela** na aba Dados para montar a tabela de um CSV.
+- **Grade de encaixe** (Ctrl+Shift+', menu Exibir e seção Exibição da página) de 4 a 50 px, com pontos no canvas e encaixe ao desenhar, mover e redimensionar; Shift+setas anda um passo da grade.
+- **Espaço entre os itens**: campos ↔ e ↕ no painel Design para aplicar um espaço igual entre vários objetos.
+- **Estilo rápido**: oito combinações de preenchimento, contorno e cor do texto para formas e notas.
+- **Conectar em sequência** (Ctrl+Alt+X, menu Organizar e clique direito).
+- **Paletas de cores** da interface (Grafo, Bento, Sonda e Nexo, claras e escuras) no botão de paleta do topo.
+- **Indicador de salvamento** na barra de status (Salvando…, Salvo às, Sincronizado, Offline, Não salvo) e o tamanho do objeto selecionado.
+- **Página vazia** com atalhos para Novo quadro, Diagrama de texto, Tabela e Imagem.
+- Servidor: **`GET /api/metrics`** no formato do Prometheus (salas, conexões, participantes, updates aplicados e recusados, bytes, limite de taxa e serviços disponíveis), protegido pelo `GRAFO_API_TOKEN` quando ele está definido.
+- Testes de unidade, ponta a ponta e do servidor para todas as novidades (30 do editor, 22 cenários ponta a ponta e 27 do servidor).
+
+### Alterado
+
+- O tutorial rápido apresenta o diagrama a partir de texto, a busca e o indicador de salvamento.
+- Manuais em PDF e README atualizados para a versão 1.3.0.
+
+### Corrigido
+
+- O Tab ativava a camada de acessibilidade do PixiJS sobre o canvas, que engolia o clique seguinte até o mouse se mexer.
+- Botões do painel Design (itálico, alinhamento, estilos) só mostravam o estado novo na próxima seleção.
+- Cada arquivo aberto deixava um ouvinte de saída da página registrado.
+
 ## [1.2.0] - 2026-11-03
 
 ### Adicionado

@@ -45,7 +45,7 @@ function steps() {
     toolStep('Selecionar e organizar', 'Clique numa ferramenta ou aperte a tecla dela. Estas criam e organizam as telas do seu arquivo.', ['select', 'scale', 'frame', 'section']),
     toolStep('Formas e imagens', 'Formas vetoriais que você pode pintar, contornar, arredondar e girar.', ['rect', 'ellipse', 'line', 'arrow', 'polygon', 'star', 'image']),
     toolStep('Desenhar e escrever', 'Para ícones, ilustrações e todo o texto das telas.', ['pen', 'pencil', 'text']),
-    toolStep('Diagramas', 'Fluxogramas, UML, entidade-relacionamento, BPMN, redes e organogramas ficam na aba Formas, à esquerda: clique ou arraste uma forma para a tela. Passe o mouse numa forma e puxe um dos pontos para ligá-la a outra.', ['sticky', 'connector'], () => [byText('#leftPanel .tab', 'Formas')]),
+    toolStep('Diagramas', 'Fluxogramas, UML, entidade-relacionamento, BPMN, redes e organogramas ficam na aba Formas, à esquerda: clique ou arraste uma forma para a tela. Passe o mouse numa forma e puxe um dos pontos para ligá-la a outra. Ctrl+Alt+M desenha um diagrama a partir de texto Mermaid ou de uma lista com recuo.', ['sticky', 'connector'], () => [byText('#leftPanel .tab', 'Formas')]),
     {
       title: 'Páginas e camadas',
       text: 'Cada arquivo tem páginas. A árvore de camadas mostra tudo o que está na página: arraste para reordenar, use o olho para ocultar e o cadeado para travar. Duplo clique renomeia.',
@@ -59,7 +59,7 @@ function steps() {
     },
     {
       title: 'Navegar e comentar',
-      text: 'A roda do mouse rola a tela e Ctrl + roda (ou a pinça) aproxima no cursor; Shift+1 mostra tudo. O minimapa leva a qualquer ponto. Ctrl+K abre as ações rápidas para achar qualquer comando. Errou? Ctrl+Z desfaz e Ctrl+Shift+Z refaz.',
+      text: 'A roda do mouse rola a tela e Ctrl + roda (ou a pinça) aproxima no cursor; Shift+1 mostra tudo. O minimapa leva a qualquer ponto. Ctrl+K abre as ações rápidas para achar qualquer comando e Ctrl+F localiza e substitui textos. Errou? Ctrl+Z desfaz e Ctrl+Shift+Z refaz.',
       tools: ['hand', 'comment', 'eyedropper'],
       anchor: () => [toolButton('hand'), toolButton('comment'), toolButton('eyedropper')],
       targets: () => [toolButton('hand'), toolButton('comment'), toolButton('eyedropper'), q('#zoomBtn'), q('#minimap')],
@@ -73,8 +73,8 @@ function steps() {
     {
       title: 'Salvar e exportar',
       text: desktop
-        ? 'O Grafo salva sozinho a cada mudança. Ctrl+S guarda uma cópia .grafo onde você escolher, Ctrl+Alt+S salva uma versão e Arquivo → Exportar gera PNG, JPG, SVG ou PDF, sempre com a janela Salvar como do Windows. F11 liga e desliga a tela cheia.'
-        : 'O Grafo salva sozinho a cada mudança. Ctrl+S guarda uma cópia .grafo, Ctrl+Alt+S salva uma versão com nome e Arquivo → Exportar gera PNG, JPG, SVG ou PDF.',
+        ? 'O Grafo salva sozinho a cada mudança (a barra de status mostra quando). Ctrl+S guarda uma cópia .grafo onde você escolher, Ctrl+Alt+S salva uma versão e Arquivo → Exportar gera PNG, JPG, SVG ou PDF, sempre com a janela Salvar como do Windows. F11 liga e desliga a tela cheia.'
+        : 'O Grafo salva sozinho a cada mudança (a barra de status mostra quando). Ctrl+S guarda uma cópia .grafo, Ctrl+Alt+S salva uma versão com nome e Arquivo → Exportar gera PNG, JPG, SVG ou PDF.',
       targets: () => [byText('#menus .menu-btn', 'Arquivo')],
       prefer: ['below', 'right', 'left', 'above'],
     },

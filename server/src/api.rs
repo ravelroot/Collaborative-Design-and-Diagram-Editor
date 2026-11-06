@@ -85,6 +85,18 @@ pub async fn health(State(app): State<Shared>) -> Json<Value> {
     }))
 }
 
+pub async fn metrics(State(app): State<Shared>) -> Response {
+    let body = crate::metrics::render(&app);
+    let mut res = body.into_response();
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; version=0.0.4; charset=utf-8"),
+    );
+    res.headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    res
+}
+
 #[derive(Serialize, sqlx::FromRow)]
 pub struct FileRow {
     id: Uuid,

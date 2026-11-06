@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import * as Y from 'yjs';
 import { calc, parseCSV, normHex, safeName, escapeXml, hexToNum, numToHex, toHex } from '../../web/src/util.js';
-import { measureGaps, gridLayout } from '../../web/src/editor.js';
+import { measureGaps, gridLayout, findMatches, replaceIn, sequenceOrder, tableCells, GRID_SIZES } from '../../web/src/editor.js';
+import { parseMermaid, parseOutline, parseTextDiagram, detectTextDiagram, toMermaid, labelSize } from '../../web/src/textdiagram.js';
 import { TEMPLATES, TEMPLATE_CATEGORIES, PATTERN_TEMPLATES, AULA_STARTS, buildBoard, applyBoard, aulaStart, boardPreview } from '../../web/src/templates.js';
 import { SHAPES, nodeParts, parseD, flattenD, pathD } from '../../web/src/shapes.js';
 import { rotatePoint, corners, aabb, union, toLocal, anchorOf, bestSide, distToPolyline, pointInPoly, hitNode, connectorRoute, isContainer, applyCase } from '../../web/src/geom.js';
@@ -180,6 +181,127 @@ describe('ferramentas de medida e organização', () => {
     const scattered = Array.from({ length: 5 }, (_, i) => ({ x: i * 37, y: i * 91, w: 30, h: 30 }));
     assert.equal(new Set(gridLayout(scattered, 10).map((p) => p.x)).size, 1);
     assert.deepEqual(gridLayout([], 10), []);
+  });
+});
+
+describe('diagrama a partir de texto', () => {
+  test('Mermaid: formas, rótulos, estilos de seta, & e subgraph', () => {
+    const m = parseMermaid(`flowchart LR
+      %% comentário
+      A([Início]) --> B{Pago?}
+      B -- sim --> C[(Banco)]
+      B -.->|não| D((Fim))
+      C ==> E[[Rotina]] & F[/Dados/]
+      subgraph G [Grupo]
+        E --- F
+      end
+      classDef x fill:#fff;
+      click A call foo
+      A --> H{{Preparar}}; H --> I>Bandeira]`);
+    assert.equal(m.kind, 'mermaid');
+    assert.equal(m.dir, 'LR');
+    const shape = Object.fromEntries(m.nodes.map((n) => [n.id, n.shape]));
+    assert.deepEqual(shape, { A: 'terminator', B: 'decision', C: 'database', D: 'ellipse', E: 'predefined', F: 'data', H: 'preparation', I: 'chevron' });
+    assert.equal(m.nodes.find((n) => n.id === 'A').label, 'Início');
+    const edge = (a, b) => m.edges.find((e) => e.from === a && e.to === b);
+    assert.equal(edge('B', 'C').label, 'sim');
+    assert.equal(edge('B', 'D').label, 'não');
+    assert.equal(edge('B', 'D').dotted, true);
+    assert.equal(edge('C', 'E').thick, true);
+    assert.ok(edge('C', 'F'));
+    assert.equal(edge('E', 'F').endCap, 'none');
+    assert.equal(edge('A', 'B').endCap, 'triangle');
+    assert.deepEqual(m.groups, [{ title: 'Grupo', members: ['E', 'F'] }]);
+    assert.deepEqual(m.warnings, []);
+  });
+
+  test('Mermaid aceita aspas, <br>, setas sem espaço e recusa entrada malformada sem travar', () => {
+    const m = parseMermaid('graph TD\nA["Olá (mundo)"]-->B["linha 1<br/>linha 2"]\nB-->A');
+    assert.equal(m.dir, 'TD');
+    assert.equal(m.nodes[0].label, 'Olá (mundo)');
+    assert.equal(m.nodes[1].label, 'linha 1\nlinha 2');
+    assert.equal(m.edges.length, 2);
+    const junk = parseMermaid('graph TD\n' + '}}}{{{[[[(((--->>>\n'.repeat(50) + 'A[' + 'x'.repeat(5000));
+    assert.ok(Array.isArray(junk.nodes));
+    assert.ok(junk.nodes.every((n) => String(n.label).length <= 300));
+    const big = parseMermaid('graph TD\n' + Array.from({ length: 900 }, (_, i) => `n${i} --> n${i + 1}`).join('\n'));
+    assert.ok(big.nodes.length <= 400);
+    assert.ok(big.edges.length <= 800);
+  });
+
+  test('lista com recuo vira árvore e o formato é detectado', () => {
+    const o = parseOutline('Projeto\n  - Fase 1\n    * Tarefa A\n    * Tarefa B\n  - Fase 2\n\tTarefa C');
+    assert.equal(o.nodes.length, 6);
+    assert.equal(o.nodes[0].depth, 0);
+    assert.deepEqual(o.edges.map((e) => `${e.from}>${e.to}`), ['o0>o1', 'o1>o2', 'o1>o3', 'o0>o4', 'o4>o5']);
+    assert.equal(detectTextDiagram('flowchart TD\nA-->B'), 'mermaid');
+    assert.equal(detectTextDiagram('A --> B'), 'mermaid');
+    assert.equal(detectTextDiagram('Ideia\n  Ramo'), 'outline');
+    assert.equal(parseTextDiagram('Ideia\n  Ramo', 'outline').kind, 'outline');
+  });
+
+  test('exportar como Mermaid e ler de volta mantém formas, setas e rótulos', () => {
+    const shapes = [
+      { id: 'a', type: 'shape', shape: 'terminator', x: 0, y: 0, w: 100, h: 50, text: 'Início' },
+      { id: 'b', type: 'shape', shape: 'decision', x: 0, y: 120, w: 100, h: 80, text: 'Ok? [sim]' },
+      { id: 'c', type: 'shape', shape: 'database', x: 0, y: 260, w: 100, h: 80, text: 'Banco' },
+    ];
+    const conns = [
+      { type: 'connector', from: { node: 'a' }, to: { node: 'b' }, endCap: 'triangle', text: '' },
+      { type: 'connector', from: { node: 'b' }, to: { node: 'c' }, endCap: 'triangle', dash: [6, 4], text: 'sim' },
+      { type: 'connector', from: { node: 'c' }, to: { node: 'zz' }, endCap: 'triangle' },
+    ];
+    const code = toMermaid(shapes, conns);
+    assert.match(code, /^flowchart TD/);
+    const back = parseMermaid(code);
+    assert.deepEqual(back.nodes.map((n) => n.shape), ['terminator', 'decision', 'database']);
+    assert.equal(back.nodes[1].label, 'Ok? [sim]');
+    assert.equal(back.edges.length, 2);
+    assert.equal(back.edges[1].label, 'sim');
+    assert.equal(back.edges[1].dotted, true);
+    const s = labelSize('um rótulo bem comprido que passa de uma linha', { w: 140, h: 70 });
+    assert.ok(s.w > 140 && s.w <= 300 && s.h >= 70);
+  });
+});
+
+describe('localizar, tabela e espaçamento', () => {
+  test('localizar respeita maiúsculas, palavra inteira e caracteres especiais', () => {
+    const nodes = [
+      { id: '1', page: 'p', text: 'Pedido aprovado' },
+      { id: '2', page: 'p', text: 'pedidos e PEDIDO' },
+      { id: '3', page: 'p', text: 'custo (R$)' },
+      { id: '4', page: 'p', name: 'sem texto' },
+    ];
+    assert.deepEqual(findMatches(nodes, 'pedido').map((m) => [m.id, m.count]), [['1', 1], ['2', 2]]);
+    assert.deepEqual(findMatches(nodes, 'pedido', { matchCase: true }).map((m) => m.id), ['2']);
+    assert.deepEqual(findMatches(nodes, 'pedido', { wholeWord: true }).map((m) => [m.id, m.count]), [['1', 1], ['2', 1]]);
+    assert.deepEqual(findMatches(nodes, '(R$)').map((m) => m.id), ['3']);
+    assert.deepEqual(findMatches(nodes, ''), []);
+    assert.equal(replaceIn('Pedido e pedido', 'pedido', 'Venda'), 'Venda e Venda');
+    assert.equal(replaceIn('Pedido e pedido', 'pedido', 'Venda', { matchCase: true }), 'Pedido e Venda');
+    assert.equal(replaceIn('a.b a.b', 'a.b', '$&$1'), '$&$1 $&$1');
+    assert.equal(replaceIn('ação acao', 'ação', 'x', { wholeWord: true }), 'x acao');
+  });
+
+  test('tabela com cabeçalho, dados e limites', () => {
+    const t = tableCells(3, 2, { header: true });
+    assert.equal(t.cells.length, 6);
+    assert.equal(t.cells.filter((c) => c.head).length, 2);
+    assert.equal(t.w, 280);
+    assert.equal(t.h, 120);
+    const d = tableCells(2, 2, { data: [['Nome', 'Cargo'], ['Ana Beatriz de Souza', 'Dev']] });
+    assert.equal(d.cells[2].text, 'Ana Beatriz de Souza');
+    assert.ok(d.cells[0].w > d.cells[1].w);
+    const huge = tableCells(9999, 9999);
+    assert.equal(huge.cells.length, 200 * 24);
+    assert.ok(GRID_SIZES.includes(8));
+  });
+
+  test('ordem de conexão em sequência segue a direção dominante', () => {
+    const row = [{ x: 300, y: 0, w: 50, h: 50 }, { x: 0, y: 5, w: 50, h: 50 }, { x: 150, y: -5, w: 50, h: 50 }];
+    assert.deepEqual(sequenceOrder(row), [1, 2, 0]);
+    const col = [{ x: 0, y: 400, w: 50, h: 50 }, { x: 10, y: 0, w: 50, h: 50 }, { x: 0, y: 200, w: 50, h: 50 }];
+    assert.deepEqual(sequenceOrder(col), [1, 2, 0]);
   });
 });
 

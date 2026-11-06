@@ -292,12 +292,14 @@ async fn malformed_and_oversized_messages_do_not_break_the_room() {
 }
 
 async fn reqwest_like_health(addr: SocketAddr) -> String {
+    raw_get(addr, "/api/health").await
+}
+
+async fn raw_get(addr: SocketAddr, path: &str) -> String {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
-    stream
-        .write_all(b"GET /api/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-        .await
-        .unwrap();
+    let req = format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+    stream.write_all(req.as_bytes()).await.unwrap();
     let mut buf = Vec::new();
     stream.read_to_end(&mut buf).await.unwrap();
     String::from_utf8_lossy(&buf).to_string()
@@ -399,5 +401,35 @@ async fn invalid_room_id_is_rejected() {
     let doc = Doc::new();
     let sv = doc.transact().state_vector();
     assert_eq!(sv, StateVector::default());
+    server.stop().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn metrics_report_rooms_connections_and_updates() {
+    let server = TestServer::start(1 << 20).await;
+    let room = Uuid::new_v4();
+    let a = Client::connect(server.addr, room).await;
+    let b = Client::connect(server.addr, room).await;
+    a.insert("k", 1);
+    assert!(
+        wait_until(Duration::from_secs(5), || b
+            .keys()
+            .contains(&"k".to_string()))
+        .await
+    );
+    let body = raw_get(server.addr, "/api/metrics").await;
+    assert!(body.contains("200 OK"), "{body}");
+    assert!(body.contains("text/plain; version=0.0.4"));
+    assert!(body.contains("grafo_rooms 1"));
+    assert!(body.contains("grafo_ws_connections 2"));
+    let applied = body
+        .lines()
+        .find_map(|l| l.strip_prefix("grafo_updates_applied_total "))
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(0);
+    assert!(applied >= 1);
+    assert!(body.contains("grafo_dependency_up{service=\"postgres\"} 0"));
+    a.close().await;
+    b.close().await;
     server.stop().await;
 }

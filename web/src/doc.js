@@ -92,8 +92,15 @@ export class Store {
     this.assetsY.observe(() => this.emit({ assets: true }));
     this.meta.observe(() => this.emit({ meta: true }));
     this.undo = new Y.UndoManager([this.nodesY, this.pages, this.pageInfo, this.commentsY, this.stylesY, this.dataY], { trackedOrigins: new Set([LOCAL]), captureTimeout: 400 });
+    this.saveWatchers = new Set();
+    this.savePending = false;
+    this.savedAt = 0;
+    this.saveError = false;
     this.saveLocal = debounce(() => this.persist(), 500);
-    this.doc.on('update', () => this.saveLocal());
+    this.doc.on('update', () => {
+      this.savePending = true;
+      this.saveLocal();
+    });
   }
 
   onNodes(events) {
@@ -315,9 +322,18 @@ export class Store {
     return !!rec;
   }
 
+  onSave(fn) {
+    this.saveWatchers.add(fn);
+    return () => this.saveWatchers.delete(fn);
+  }
+
   async persist() {
     const update = Y.encodeStateAsUpdate(this.doc);
-    await idb.put('docs', { id: this.fileId, name: this.name, update, updatedAt: Date.now(), size: update.byteLength }, this.fileId);
+    const ok = await idb.put('docs', { id: this.fileId, name: this.name, update, updatedAt: Date.now(), size: update.byteLength }, this.fileId);
+    this.saveError = ok === null;
+    this.savePending = false;
+    if (!this.saveError) this.savedAt = Date.now();
+    for (const fn of this.saveWatchers) fn();
   }
 
   static async recent() {
@@ -460,7 +476,8 @@ export class Store {
     bc.postMessage({ t: 'sv', d: Y.encodeStateVector(this.doc) });
     bc.postMessage({ t: 'q' });
     this.online = true;
-    addEventListener('beforeunload', () => removeAwarenessStates(this.awareness, [this.doc.clientID], 'unload'));
+    this.leave = () => removeAwarenessStates(this.awareness, [this.doc.clientID], 'unload');
+    addEventListener('beforeunload', this.leave);
   }
 
   setUser(u) {
@@ -475,6 +492,8 @@ export class Store {
       this.saveLocal.flush();
     } catch {}
     if (this.provider) this.provider.destroy();
+    if (this.leave) removeEventListener('beforeunload', this.leave);
+    this.saveWatchers.clear();
     this.awareness.destroy();
     if (this.bc) {
       const bc = this.bc;

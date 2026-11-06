@@ -79,19 +79,25 @@ fn is_write(method: &Method) -> bool {
     )
 }
 
+pub fn bearer_ok(app: &Shared, headers: &HeaderMap) -> bool {
+    let Some(expected) = &app.cfg.api_token else {
+        return true;
+    };
+    let provided = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or("");
+    constant_time_eq(provided.as_bytes(), expected.as_bytes())
+}
+
+fn needs_token(method: &Method, path: &str) -> bool {
+    is_write(method) || path.ends_with("/metrics")
+}
+
 pub async fn auth(State(app): State<Shared>, req: Request, next: Next) -> Response {
-    if let Some(expected) = &app.cfg.api_token {
-        if is_write(req.method()) {
-            let provided = req
-                .headers()
-                .get(header::AUTHORIZATION)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|v| v.strip_prefix("Bearer "))
-                .unwrap_or("");
-            if !constant_time_eq(provided.as_bytes(), expected.as_bytes()) {
-                return ApiError::Unauthorized.into_response();
-            }
-        }
+    if needs_token(req.method(), req.uri().path()) && !bearer_ok(&app, req.headers()) {
+        return ApiError::Unauthorized.into_response();
     }
     next.run(req).await
 }
@@ -131,6 +137,7 @@ pub async fn rate_limit(
         None => local_count(&app, &ip, minute),
     };
     if count > limit {
+        crate::metrics::inc(&crate::metrics::METRICS.rate_limited_total);
         let mut res = (
             StatusCode::TOO_MANY_REQUESTS,
             axum::Json(
@@ -225,5 +232,29 @@ mod tests {
         assert_eq!(client_ip(&app, &headers, addr), "5.6.7.8");
         headers.insert("x-forwarded-for", HeaderValue::from_static("lixo"));
         assert_eq!(client_ip(&app, &headers, addr), "192.168.0.9");
+    }
+
+    #[tokio::test]
+    async fn metrics_and_writes_require_token_when_configured() {
+        let mut c = cfg(3);
+        assert!(needs_token(&Method::POST, "/api/files"));
+        assert!(needs_token(&Method::GET, "/api/metrics"));
+        assert!(!needs_token(&Method::GET, "/api/health"));
+        let open = AppState::connect(c.clone()).await;
+        assert!(bearer_ok(&open, &HeaderMap::new()));
+        c.api_token = Some("x".repeat(32));
+        let closed = AppState::connect(c).await;
+        assert!(!bearer_ok(&closed, &HeaderMap::new()));
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {}", "x".repeat(32))).unwrap(),
+        );
+        assert!(bearer_ok(&closed, &headers));
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer errado"),
+        );
+        assert!(!bearer_ok(&closed, &headers));
     }
 }

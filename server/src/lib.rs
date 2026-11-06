@@ -2,6 +2,7 @@ pub mod api;
 pub mod bus;
 pub mod config;
 pub mod error;
+pub mod metrics;
 pub mod restore;
 pub mod room;
 pub mod security;
@@ -25,6 +26,7 @@ use crate::state::Shared;
 pub fn router(app: Shared) -> Router {
     let api = Router::new()
         .route("/health", get(api::health))
+        .route("/metrics", get(api::metrics))
         .route("/files", get(api::list_files).post(api::create_file))
         .route(
             "/files/{id}",
@@ -88,6 +90,7 @@ pub async fn serve(
     listener: tokio::net::TcpListener,
     shutdown: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
+    metrics::mark_started();
     bus::spawn(app.clone());
     let service = router(app.clone()).into_make_service_with_connect_info::<SocketAddr>();
     axum::serve(listener, service)

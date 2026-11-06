@@ -518,6 +518,171 @@ test('ponte do app desktop: salvar pela janela do Windows e F11', async () => {
   await ctx.close();
 });
 
+test('diagrama a partir de texto, volta como Mermaid e conecta em sequência', async () => {
+  await page.evaluate(() => {
+    const g = window.grafo;
+    g.editor.setPage(g.store.addPage('Texto'));
+  });
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Control+Alt+KeyM');
+  await page.waitForSelector('.text-diagram');
+  await page.locator('.text-diagram textarea').fill('flowchart LR\n  A[Um] --> B{Dois}\n  B -- sim --> C([Três])\n  B -.->|não| A');
+  assert.match(await page.locator('.text-diagram-info').textContent(), /3 formas · 3 conectores/);
+  await page.locator('.modal footer .btn.primary').click();
+  const d = await page.evaluate(() => {
+    const g = window.grafo;
+    const nodes = g.editor.pageNodes();
+    const shapes = nodes.filter((n) => n.type === 'shape');
+    const by = Object.fromEntries(shapes.map((n) => [n.text, n]));
+    const conns = nodes.filter((n) => n.type === 'connector');
+    return { shapes: shapes.length, conns: conns.length, kinds: [by['Um'].shape, by['Dois'].shape, by['Três'].shape], lr: by['Um'].x < by['Dois'].x && by['Dois'].x < by['Três'].x, label: conns.some((c) => c.text === 'sim'), dotted: conns.some((c) => Array.isArray(c.dash)), mermaid: g.editor.mermaidFor([]) };
+  });
+  assert.equal(d.shapes, 3);
+  assert.equal(d.conns, 3);
+  assert.deepEqual(d.kinds, ['process', 'decision', 'terminator']);
+  assert.ok(d.lr);
+  assert.ok(d.label && d.dotted);
+  assert.match(d.mermaid, /^flowchart LR/);
+  assert.match(d.mermaid, /-->\|sim\|/);
+  assert.match(d.mermaid, /-\.->/);
+  await page.keyboard.press('Control+Alt+KeyM');
+  await page.waitForSelector('.text-diagram');
+  await page.locator('.text-diagram textarea').fill('Raiz\n  Ramo A\n    Folha\n  Ramo B');
+  await page.locator('.modal footer .btn.primary').click();
+  const tree = await page.evaluate(() => window.grafo.editor.selection.length);
+  assert.equal(tree, 4);
+  const seq = await page.evaluate(() => {
+    const g = window.grafo;
+    const ed = g.editor;
+    const ids = [0, 1, 2].map((i) => ed.commit(() => g.store.add({ type: 'shape', shape: 'process', page: ed.page, parent: null, x: 4000 + i * 220, y: 3000, w: 140, h: 70, text: 'P' + i })));
+    ed.select([ids[2], ids[0], ids[1]]);
+    return ids;
+  });
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Control+Alt+KeyX');
+  const links = await page.evaluate((ids) => window.grafo.editor.pageNodes().filter((c) => c.type === 'connector' && ids.includes(c.from?.node)).map((c) => [ids.indexOf(c.from.node), ids.indexOf(c.to.node)]), seq);
+  assert.deepEqual(links.sort(), [[0, 1], [1, 2]]);
+  await page.keyboard.press('Control+Alt+KeyX');
+  assert.equal(await page.evaluate((ids) => window.grafo.editor.pageNodes().filter((c) => c.type === 'connector' && ids.includes(c.from?.node)).length, seq), 2);
+});
+
+test('localizar e substituir entre páginas, com desfazer', async () => {
+  const pages = await page.evaluate(() => {
+    const g = window.grafo;
+    const st = g.store;
+    const p1 = st.addPage('Busca 1');
+    const p2 = st.addPage('Busca 2');
+    st.transact(() => {
+      st.add({ type: 'text', page: p1, parent: null, x: 0, y: 0, w: 100, h: 20, text: 'Cliente novo', fontSize: 16 });
+      st.add({ type: 'shape', shape: 'process', page: p2, parent: null, x: 0, y: 0, w: 140, h: 70, text: 'Avisar cliente' });
+      st.add({ type: 'shape', shape: 'process', page: p2, parent: null, x: 0, y: 200, w: 140, h: 70, text: 'clientela', locked: true });
+    });
+    g.editor.setPage(p1);
+    return [p1, p2];
+  });
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Control+KeyF');
+  await page.waitForSelector('.find-panel');
+  await page.locator('.find-query').fill('cliente');
+  assert.match(await page.locator('.find-count').textContent(), /de 3/);
+  await page.locator('.find-opt[aria-label="Só palavras inteiras"]').click();
+  assert.match(await page.locator('.find-count').textContent(), /de 2/);
+  await page.locator('.find-query').press('Enter');
+  await page.locator('.find-query').press('Enter');
+  const jumped = await page.evaluate(() => ({ page: window.grafo.editor.page, sel: window.grafo.editor.selection.map((n) => n.text) }));
+  assert.equal(jumped.page, pages[1]);
+  assert.deepEqual(jumped.sel, ['Avisar cliente']);
+  await page.keyboard.press('Control+KeyH');
+  await page.locator('.find-replace').fill('Freguês');
+  await page.locator('.find-replace').press('Control+Enter');
+  const texts = await page.evaluate(() => [...window.grafo.store.nodes.values()].filter((n) => /Freguês|clientela/.test(n.text || '')).map((n) => n.text).sort());
+  assert.deepEqual(texts, ['Avisar Freguês', 'Freguês novo', 'clientela']);
+  await page.locator('.find-replace').press('Escape');
+  assert.equal(await page.locator('.find-panel').count(), 0);
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Control+z');
+  const undone = await page.evaluate(() => [...window.grafo.store.nodes.values()].some((n) => n.text === 'Avisar cliente') && [...window.grafo.store.nodes.values()].some((n) => n.text === 'Cliente novo'));
+  assert.ok(undone);
+});
+
+test('tabela, grade de encaixe, espaço entre itens e página vazia', async () => {
+  await page.evaluate(() => {
+    const g = window.grafo;
+    g.editor.setPage(g.store.addPage('Tabela'));
+  });
+  await page.waitForSelector('.empty-hint.show');
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('r');
+  await page.waitForSelector('.empty-hint:not(.show)', { state: 'attached' });
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.empty-hint.show');
+  await page.keyboard.press('Shift+T');
+  await page.waitForSelector('.modal');
+  const rows = page.locator('.modal input[aria-label="Número de linhas"]');
+  await rows.fill('3');
+  await rows.press('Enter');
+  const cols = page.locator('.modal input[aria-label="Número de colunas"]');
+  await cols.fill('2');
+  await cols.press('Enter');
+  await page.locator('.modal footer .btn.primary').click();
+  const table = await page.evaluate(() => {
+    const g = window.grafo;
+    const t = g.editor.selection[0];
+    const kids = g.store.childrenOf(t.id);
+    return { type: t.type, cells: kids.length, head: kids.filter((k) => k.fontWeight === 600).length, w: t.w, h: t.h };
+  });
+  assert.deepEqual(table, { type: 'frame', cells: 6, head: 2, w: 280, h: 120 });
+  await page.waitForFunction(() => !document.querySelector('.empty-hint.show'));
+  await page.locator('#overlay').focus();
+  await page.keyboard.press("Control+Shift+'");
+  assert.equal(await page.evaluate(() => window.grafo.editor.settings.snapGrid), true);
+  await page.evaluate(() => {
+    window.grafo.editor.settings.gridSize = 10;
+    window.grafo.editor.saveSettings();
+  });
+  const a = await vp(0.3, 0.75);
+  await page.keyboard.press('r');
+  await drag(await at(a.x + 3.3, a.y + 6.6), await at(a.x + 97.7, a.y + 61.2));
+  const box = await page.evaluate(() => {
+    const n = window.grafo.editor.selection[0];
+    return [n.x, n.y, n.w, n.h];
+  });
+  assert.ok(box.every((v) => Math.abs(v % 10) < 1e-6), JSON.stringify(box));
+  await page.keyboard.press('Shift+ArrowRight');
+  const moved = await page.evaluate(() => window.grafo.editor.selection[0].x);
+  assert.equal(moved, box[0] + 10);
+  await page.keyboard.press("Control+Shift+'");
+  const gap = await page.evaluate(() => {
+    const g = window.grafo;
+    const ed = g.editor;
+    const ids = [0, 1, 2].map((i) => ed.commit(() => g.store.add({ type: 'rect', page: ed.page, parent: null, x: 9000 + i * 130 + i * i * 7, y: 9000, w: 100, h: 60 })));
+    ed.select(ids);
+    return ids;
+  });
+  const gapInput = page.locator('input[aria-label="Espaço horizontal igual entre os itens"]');
+  await gapInput.fill('24');
+  await gapInput.press('Enter');
+  const xs = await page.evaluate((ids) => ids.map((id) => window.grafo.store.get(id).x), gap);
+  assert.deepEqual(xs, [9000, 9124, 9248]);
+  await page.locator('.quick-style[aria-label="Estilo Vinho"]').click();
+  const styled = await page.evaluate((ids) => ids.map((id) => {
+    const n = window.grafo.store.get(id);
+    return [n.fill.color, n.stroke.color, n.textColor];
+  }), gap);
+  assert.deepEqual(styled[2], ['#5D1C16', '#3E120E', '#FAF3E6']);
+  await page.waitForSelector('.quick-style[aria-label="Estilo Vinho"][aria-pressed="true"]');
+  assert.match(await page.locator('.statusbar .save-state').textContent(), /Salv/);
+});
+
+test('Tab não cobre o canvas com a camada de acessibilidade do PixiJS', async () => {
+  await page.locator('#overlay').focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  const box = await page.locator('#overlay').boundingBox();
+  const top = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id, [box.x + box.width / 2, box.y + box.height / 2]);
+  assert.equal(top, 'overlay');
+});
+
 test('sem erros de JavaScript', () => {
   assert.deepEqual(page.errors, []);
 });

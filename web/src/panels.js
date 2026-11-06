@@ -1,5 +1,5 @@
 import { el, icon, clamp, round, normHex, rgba, pickFile, readDataURL, loadImage, parseCSV, download, safeName, uid, userColors, storage, calc, PALETTES, canvasColor } from './util.js';
-import { TOOLS } from './editor.js';
+import { TOOLS, GRID_SIZES } from './editor.js';
 import { SHAPES, LIBRARIES, shapeDef, nodeParts } from './shapes.js';
 import { isContainer, hasText, nodeBounds, union, FONT_STACKS, fitText } from './geom.js';
 import { exportNodes, saveGrafoFile, importSvgAsImage, toSVG, svgToCanvas } from './export.js';
@@ -7,14 +7,28 @@ import { present, presentableFrames } from './present.js';
 import { Store } from './doc.js';
 import { startTutorial } from './tutorial.js';
 import { TEMPLATES, TEMPLATE_CATEGORIES, PATTERN_TEMPLATES, AULA_STARTS, buildBoard, boardPreview, aulaStart } from './templates.js';
+import { parseTextDiagram } from './textdiagram.js';
 
 const BLEND_NAMES = { normal: 'Normal', multiply: 'Multiplicar', screen: 'Tela', overlay: 'Sobrepor', darken: 'Escurecer', lighten: 'Clarear', 'color-dodge': 'Subexposição de cor', 'color-burn': 'Superexposição de cor', 'hard-light': 'Luz forte', 'soft-light': 'Luz suave', difference: 'Diferença', exclusion: 'Exclusão', hue: 'Matiz', saturation: 'Saturação', color: 'Cor', luminosity: 'Luminosidade' };
 const TYPE_ICON = { frame: 'frame', section: 'section', group: 'group', rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', image: 'image', sticky: 'sticky', shape: 'shapes', connector: 'connector', component: 'component', instance: 'instance', boolean: 'union' };
 const TYPE_NAME = { frame: 'Frame', section: 'Seção', group: 'Grupo', rect: 'Retângulo', ellipse: 'Elipse', polygon: 'Polígono', star: 'Estrela', path: 'Vetor', text: 'Texto', image: 'Imagem', sticky: 'Nota adesiva', shape: 'Forma', connector: 'Conector', component: 'Componente', instance: 'Instância', boolean: 'Booleana' };
 const FRAME_PRESETS = [['Celular', 390, 844], ['Celular grande', 430, 932], ['Tablet', 834, 1194], ['Notebook', 1280, 832], ['Desktop', 1440, 1024], ['Slide 16:9', 1920, 1080], ['A4', 595, 842], ['Post quadrado', 1080, 1080], ['Story', 1080, 1920]];
 const PALETTE = ['#5D1C16', '#A3B4BE', '#5C4034', '#E6DDCE', '#7A6E46', '#D6BDB8', '#F6E4A6', '#2B1D17', '#FFFFFF', '#000000'];
-const APP_VERSION = typeof GRAFO_VERSION !== 'undefined' ? GRAFO_VERSION : '1.2.0';
+const APP_VERSION = typeof GRAFO_VERSION !== 'undefined' ? GRAFO_VERSION : '1.3.0';
 const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const QUICK_STYLES = [
+  ['Linho', '#FAF6EF', '#5C4034', '#2B1D17'],
+  ['Palha', '#F6E4A6', '#7A6E46', '#2B1D17'],
+  ['Rosa', '#D6BDB8', '#8F2A1F', '#2B1D17'],
+  ['Ardósia', '#A3B4BE', '#3F5663', '#17212B'],
+  ['Oliva', '#C9D3A8', '#55602F', '#1F2410'],
+  ['Vinho', '#5D1C16', '#3E120E', '#FAF3E6'],
+  ['Contorno', '#FFFFFF', '#2B1D17', '#2B1D17'],
+  ['Noite', '#2B1D17', '#000000', '#F6E4A6'],
+];
+const QUICK_TYPES = new Set(['shape', 'rect', 'ellipse', 'polygon', 'star', 'sticky']);
+const SAMPLE_FLOW = 'flowchart TD\n  A([Início]) --> B[Receber pedido]\n  B --> C{Pagamento aprovado?}\n  C -- sim --> D[Separar itens]\n  C -- não --> E[Avisar o cliente]\n  D --> F[(Estoque)]\n  D --> G([Fim])\n  E -.-> B';
+const SAMPLE_OUTLINE = 'Lançamento do app\n  Pesquisa\n    Entrevistas\n    Concorrentes\n  Produto\n    Protótipo\n    Testes de uso\n  Marketing\n    Página de lançamento\n    Redes sociais';
 const CAPS = { none: 'Nenhuma', arrow: 'Seta', triangle: 'Triângulo', diamond: 'Losango', diamondOpen: 'Losango vazado', circle: 'Círculo', one: 'Um (ER)', many: 'Muitos (ER)', oneMany: 'Um ou muitos', zeroMany: 'Zero ou muitos' };
 
 export class UI {
@@ -37,8 +51,10 @@ export class UI {
     this.ed.on((info) => this.onEditor(info));
     this.store.on((info) => {
       if (info.connection || info.meta) this.updateTop();
-      this.schedule(info.nodes && !info.structure && document.activeElement && this.dom.rightPanel.contains(document.activeElement) ? 'light' : 'all');
+      const typing = document.activeElement && this.dom.rightPanel.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      this.schedule(info.nodes && !info.structure && typing ? 'light' : 'all');
     });
+    this.offSave = this.store.onSave(() => this.updateStatus());
     this.bindKeys();
     this.renderAll();
   }
@@ -53,6 +69,8 @@ export class UI {
       this.renderLeft();
       if (k === 'all') this.renderRight();
       this.updateStatus();
+      this.updateEmpty();
+      if (this.findRefresh) this.findRefresh();
     });
   }
 
@@ -124,8 +142,32 @@ export class UI {
       d.minimap.onpointermove = move;
       d.minimap.onpointerup = () => (d.minimap.onpointermove = null);
     }, { signal });
+    this.emptyEl = el('div', { class: 'empty-hint', role: 'region', 'aria-label': 'Página vazia' },
+      el('div', { class: 'empty-card' },
+        el('div', { class: 'empty-title' }, el('b', { text: 'Página vazia' }), el('span', { class: 'hint', text: 'Desenhe com as ferramentas acima ou comece por aqui' })),
+        el('div', { class: 'empty-actions' },
+          el('button', { class: 'btn small', onclick: () => this.galleryDialog() }, icon('sparkle', 13), 'Novo quadro'),
+          el('button', { class: 'btn small', onclick: () => this.textDiagramDialog() }, icon('code', 13), 'Diagrama de texto'),
+          el('button', { class: 'btn small', onclick: () => this.tableDialog() }, icon('table', 13), 'Tabela'),
+          el('button', { class: 'btn small', onclick: () => this.importImage() }, icon('image', 13), 'Imagem')),
+        el('div', { class: 'empty-keys' }, ...[['R', 'retângulo'], ['T', 'texto'], ['X', 'conector'], ['Ctrl+K', 'ações rápidas']].map(([k, t]) => el('span', {}, el('kbd', { text: k }), t)))));
+    d.canvasWrap.append(this.emptyEl);
     this.updateTop();
     this.updateTools();
+  }
+
+  updateEmpty() {
+    const ed = this.ed;
+    const show = !!this.emptyEl && ed.tool === 'select' && !ed.drag && !ed.pageNodes().length;
+    if (this.emptyEl) this.emptyEl.classList.toggle('show', show);
+  }
+
+  toggleSnapGrid() {
+    const S = this.ed.settings;
+    S.snapGrid = !S.snapGrid;
+    this.ed.saveSettings();
+    this.toast(S.snapGrid ? `Grade de encaixe ligada (${this.ed.gridStep()} px)` : 'Grade de encaixe desligada');
+    this.schedule('all');
   }
 
   updateTop() {
@@ -173,6 +215,7 @@ export class UI {
     return [
       { name: 'Arquivo', items: () => [
         { label: 'Novo quadro…', key: 'Ctrl+Alt+N', run: () => this.galleryDialog() },
+        { label: 'Diagrama a partir de texto…', key: 'Ctrl+Alt+M', run: () => this.textDiagramDialog() },
         { label: 'Novo arquivo em branco', run: () => app.newFile() },
         { label: 'Abrir arquivo .grafo…', key: 'Ctrl+O', run: () => this.openFile() },
         { label: 'Arquivos recentes…', run: () => this.recentDialog() },
@@ -184,6 +227,7 @@ export class UI {
         { label: 'Importar imagem ou SVG…', key: 'Ctrl+Shift+K', run: () => this.importImage() },
         { label: 'Importar CSV de dados…', run: () => this.importCSV() },
         { label: 'Exportar…', key: 'Ctrl+Shift+E', run: () => this.exportDialog() },
+        { label: 'Copiar diagrama como Mermaid', run: () => this.copyMermaid() },
       ] },
       { name: 'Editar', items: () => [
         { label: 'Desfazer', key: 'Ctrl+Z', run: () => this.store.undo.undo(), disabled: !this.store.undo.canUndo() },
@@ -204,6 +248,7 @@ export class UI {
         { label: 'Selecionar mesma cor', run: () => this.selectSame('fill'), disabled: !sel() },
         { label: 'Selecionar mesmo tipo', run: () => this.selectSame('type'), disabled: !sel() },
         '-',
+        { label: 'Localizar e substituir…', key: 'Ctrl+F', run: () => this.findPanel() },
         { label: 'Ações rápidas…', key: 'Ctrl+K', run: () => this.commandPalette() },
       ] },
       { name: 'Exibir', items: () => [
@@ -212,6 +257,7 @@ export class UI {
         { label: 'Minimapa', key: 'Shift+M', check: S.minimap, run: toggle('minimap') },
         { label: 'Contornos', key: 'Ctrl+Shift+O', check: S.outlines, run: toggle('outlines') },
         { label: 'Guias', key: 'Shift+G', check: S.guides, run: toggle('guides') },
+        { label: `Grade de encaixe (${ed.gridStep()} px)`, key: "Ctrl+Shift+'", check: !!S.snapGrid, run: () => this.toggleSnapGrid() },
         { label: 'Remover guias da página', run: () => ed.clearGuides(), disabled: !ed.pageGuides().length },
         { label: 'Encaixe inteligente', check: S.snap, run: toggle('snap') },
         { label: 'Encaixar em pixels inteiros', check: S.pixelSnap, run: toggle('pixelSnap') },
@@ -234,6 +280,7 @@ export class UI {
         { label: 'Adicionar auto layout', key: 'Shift+A', run: () => ed.toggleAutoLayout(), disabled: !sel() },
         { label: 'Ajustar ao conteúdo', key: 'Ctrl+Alt+Shift+R', run: () => ed.fitToContent(), disabled: !ed.selection.some((n) => ['frame', 'component', 'section'].includes(n.type)) },
         { label: 'Renomear…', key: 'F2', run: () => this.renameSelection(), disabled: !sel() },
+        { label: 'Inserir tabela…', key: 'Shift+T', run: () => this.tableDialog() },
         '-',
         { label: 'Criar componente', key: 'Ctrl+Alt+K', run: () => ed.makeComponent(), disabled: !sel() },
         { label: 'Desanexar instância', key: 'Ctrl+Alt+B', run: () => ed.selection.forEach((n) => ed.detachInstance(n.id)), disabled: !ed.selection.some((n) => n.type === 'instance') },
@@ -265,6 +312,7 @@ export class UI {
         { label: 'Distribuir na horizontal', key: 'Ctrl+Alt+H', run: () => ed.distribute('h') },
         { label: 'Distribuir na vertical', key: 'Ctrl+Alt+V', run: () => ed.distribute('v') },
         { label: 'Organizar em grade', key: 'Ctrl+Alt+Shift+T', run: () => ed.tidy(), disabled: ed.sel.size < 2 },
+        { label: 'Conectar em sequência', key: 'Ctrl+Alt+X', run: () => ed.connectSelection(), disabled: ed.sel.size < 2 },
         '-',
         { label: 'Layout automático (cima → baixo)', key: 'Ctrl+Shift+Y', run: () => ed.autoArrange(0) },
         { label: 'Layout automático (esquerda → direita)', run: () => ed.autoArrange(1) },
@@ -362,6 +410,7 @@ export class UI {
       { label: 'Adicionar auto layout', key: 'Shift+A', run: () => ed.toggleAutoLayout() },
       { label: 'Criar componente', key: 'Ctrl+Alt+K', run: () => ed.makeComponent() },
       { label: 'Organizar em grade', key: 'Ctrl+Alt+Shift+T', run: () => ed.tidy(), disabled: ed.sel.size < 2 },
+      { label: 'Conectar em sequência', key: 'Ctrl+Alt+X', run: () => ed.connectSelection(), disabled: ed.sel.size < 2 },
       '-',
       { label: 'Espelhar na horizontal', key: 'Shift+H', run: () => ed.flip('h') },
       { label: 'Espelhar na vertical', key: 'Shift+V', run: () => ed.flip('v') },
@@ -371,6 +420,7 @@ export class UI {
       { label: 'Bloquear/desbloquear', key: 'Ctrl+Shift+L', run: () => this.toggleProp('locked') },
       { label: 'Copiar como PNG', key: 'Ctrl+Shift+C', run: () => this.copyPNG() },
       { label: 'Copiar como SVG', run: () => this.copySVG() },
+      { label: 'Copiar como Mermaid', run: () => this.copyMermaid() },
       { label: 'Renomear…', key: 'F2', run: () => this.renameSelection() },
       { label: 'Exportar seleção…', run: () => this.exportDialog() },
     ] : [
@@ -379,6 +429,8 @@ export class UI {
       '-',
       { label: 'Ajustar tudo', key: 'Shift+1', run: () => ed.zoomToFit() },
       { label: 'Layout automático do diagrama', key: 'Ctrl+Shift+Y', run: () => ed.autoArrange(0) },
+      { label: 'Diagrama a partir de texto…', key: 'Ctrl+Alt+M', run: () => this.textDiagramDialog() },
+      { label: 'Inserir tabela aqui…', key: 'Shift+T', run: () => this.tableDialog({ x: ed.mouse.x, y: ed.mouse.y }) },
       { label: 'Adicionar comentário', key: 'C', run: () => this.newComment({ x: ed.mouse.x, y: ed.mouse.y }) },
       { label: 'Ações rápidas…', key: 'Ctrl+K', run: () => this.commandPalette() },
     ];
@@ -968,6 +1020,12 @@ export class UI {
           const w = s.lockRatio ? Math.max(1, round((h * s.w) / Math.max(0.01, s.h), 100)) : s.w;
           return { ...sizePatch(s, w, h), ...(s.type === 'text' ? { autoSize: 'none' } : {}) };
         }), { min: 1, key: 'h', title: 'Altura' })));
+      if (multi && sel.filter((x) => x.type !== 'connector').length > 1) {
+        geo.append(el('div', { class: 'hint', text: 'Espaço entre os itens' }));
+        geo.append(el('div', { class: 'grid2' },
+          this.num('↔', ed.selectionGap('h'), (v) => ed.spaceEvenly('h', v), { key: 'gaph', title: 'Espaço horizontal igual entre os itens' }),
+          this.num('↕', ed.selectionGap('v'), (v) => ed.spaceEvenly('v', v), { key: 'gapv', title: 'Espaço vertical igual entre os itens' })));
+      }
       const row = el('div', { class: 'grid2' }, this.num('°', same('rotation') ?? 0, (v) => set({ rotation: ((v % 360) + 540) % 360 - 180 }), { key: 'rot', title: 'Rotação' }));
       if (['rect', 'frame', 'component', 'image', 'instance', 'section', 'sticky'].includes(n.type) || (n.type === 'shape' && n.shape === 'rect')) row.append(this.num('R', same('radius') ?? 0, (v) => set({ radius: Math.max(0, v) }), { min: 0, key: 'radius', title: 'Raio do canto' }));
       geo.append(row);
@@ -1018,6 +1076,7 @@ export class UI {
       this.select(Object.entries(BLEND_NAMES), same('blend') || 'normal', (v) => set({ blend: v }), { key: 'blend' }),
       this.num('', Math.round((same('opacity') ?? 1) * 100), (v) => set({ opacity: clamp(v, 0, 100) / 100 }), { suffix: '%', min: 0, max: 100, key: 'opacity', title: 'Opacidade' })));
     body.append(layer);
+    if (sel.some((x) => QUICK_TYPES.has(x.type))) body.append(this.quickStyleSection(sel));
     if (n.type !== 'connector' && n.type !== 'group' && n.type !== 'text') body.append(this.fillSection(sel, n));
     if (n.type !== 'group') body.append(this.strokeSection(sel, n));
     if (sel.some((s) => hasText(s))) body.append(this.textSection(sel.filter((s) => hasText(s)), n.type === 'text' ? n : sel.find((s) => hasText(s))));
@@ -1064,12 +1123,34 @@ export class UI {
     for (const [k, t] of [['rulers', 'Réguas'], ['guides', 'Guias (arraste da régua)'], ['grid', 'Grade de pixels (zoom ≥ 400%)'], ['minimap', 'Minimapa'], ['snap', 'Encaixe inteligente'], ['pixelSnap', 'Encaixar em pixels inteiros'], ['outlines', 'Contornos']]) {
       v.append(el('div', { class: 'row' }, el('label', { class: 'chk' }, checkbox(!!ed.settings[k], (val) => { ed.settings[k] = val; ed.saveSettings(); }), t)));
     }
+    v.append(el('div', { class: 'grid2', style: { marginTop: '4px', alignItems: 'center' } },
+      el('label', { class: 'chk' }, checkbox(!!ed.settings.snapGrid, (val) => { ed.settings.snapGrid = val; ed.saveSettings(); this.schedule('all'); }), 'Grade de encaixe'),
+      this.select(GRID_SIZES.map((g) => [g, `${g} px`]), ed.gridStep(), (val) => { ed.settings.gridSize = Number(val); ed.saveSettings(); }, { key: 'gridsize', label: '' })));
     body.append(v);
     const frames = presentableFrames(store, ed.page);
     const ex = el('div', { class: 'section' });
     ex.append(el('div', { class: 'section-title' }, 'Exportar página'));
     ex.append(el('div', { class: 'row' }, el('button', { class: 'btn small', onclick: () => this.exportDialog(true) }, icon('download', 14), 'Exportar…'), el('span', { class: 'hint', text: `${frames.length} frames` })));
     body.append(ex);
+  }
+
+  quickStyleSection(sel) {
+    const s = el('div', { class: 'section' });
+    s.append(el('div', { class: 'section-title' }, 'Estilo rápido'));
+    const row = el('div', { class: 'quick-styles', role: 'group', 'aria-label': 'Estilos rápidos' });
+    const ids = sel.map((x) => x.id);
+    for (const [name, fill, stroke, text] of QUICK_STYLES) {
+      const active = sel.every((x) => !QUICK_TYPES.has(x.type) || (x.fill?.color || '').toUpperCase() === fill && (x.type === 'sticky' || (x.stroke?.color || '').toUpperCase() === stroke));
+      row.append(el('button', { class: 'quick-style' + (active ? ' active' : ''), title: name, 'aria-label': `Estilo ${name}`, 'aria-pressed': String(active), style: { background: fill, borderColor: stroke, color: text }, onclick: () => this.ed.setProp((x) => {
+        if (x.type === 'connector') return { stroke: { ...(x.stroke || { alpha: 1 }), color: stroke } };
+        if (!QUICK_TYPES.has(x.type)) return null;
+        const patch = { fill: { type: 'solid', color: fill, alpha: 1 }, fillStyle: undefined, textColor: text };
+        if (x.type !== 'sticky') Object.assign(patch, { stroke: { color: stroke, alpha: 1 }, strokeWidth: x.strokeWidth || 1.5 });
+        return patch;
+      }, ids) }, 'Aa'));
+    }
+    s.append(row);
+    return s;
   }
 
   updateColorStyle(st, color) {
@@ -1341,7 +1422,8 @@ export class UI {
       box.append(table);
       box.append(el('div', { class: 'row', style: { marginTop: '6px', flexWrap: 'wrap' } },
         el('button', { class: 'btn small', onclick: () => this.shapesFromData(name) }, 'Criar cartões'),
-        el('button', { class: 'btn small', onclick: () => this.orgChart(name) }, icon('tree', 13), 'Organograma')));
+        el('button', { class: 'btn small', onclick: () => this.orgChart(name) }, icon('tree', 13), 'Organograma'),
+        el('button', { class: 'btn small', onclick: () => this.tableFromData(name) }, icon('table', 13), 'Tabela')));
       s.append(box);
     }
     body.append(s);
@@ -1394,6 +1476,17 @@ export class UI {
       });
     });
     ed.select(ids);
+  }
+
+  tableFromData(name) {
+    const ds = this.store.dataY.get(name);
+    if (!ds || !ds.columns.length) return;
+    const cols = ds.columns.slice(0, 24);
+    const rows = ds.rows.slice(0, 99);
+    const data = [cols, ...rows.map((r) => cols.map((c) => r[c] ?? ''))];
+    this.ed.insertTable({ rows: data.length, cols: cols.length, header: true, data, name: `Tabela · ${name}`.slice(0, 80) });
+    this.ed.zoomToSelection();
+    if (ds.rows.length > rows.length) this.toast(`Tabela com as primeiras ${rows.length} de ${ds.rows.length} linhas`);
   }
 
   orgChart(name) {
@@ -1561,22 +1654,38 @@ export class UI {
     const sb = this.dom.statusbar;
     const nodes = ed.pageNodes().length;
     const sel = ed.selection;
-    const info = sel.length === 1 ? `${TYPE_NAME[sel[0].type] || sel[0].type} · ${sel[0].name || ''}` : sel.length ? `${sel.length} selecionados` : 'Nada selecionado';
+    const one = sel.length === 1 ? sel[0] : null;
+    const size = one && one.type !== 'connector' ? ` · ${Math.round(one.w)}×${Math.round(one.h)}` : '';
+    const info = one ? `${TYPE_NAME[one.type] || one.type} · ${one.name || ''}${size}` : sel.length ? `${sel.length} selecionados` : 'Nada selecionado';
+    const save = this.saveState();
     const html = [
       el('span', {}, el('b', { text: this.app.renderer.backend || '—' }), ' render'),
       el('span', {}, el('b', { text: this.app.engineMode }), ' núcleo'),
       el('span', {}, el('b', { text: this.store.mode === 'server' ? 'Servidor' : window.grafoDesktop ? 'App desktop' : 'Local' }), ' modo'),
       el('span', { text: `${nodes} objetos na página` }),
       el('span', { class: 'grow', text: info }),
+      el('span', { class: 'save-state' + (save.warn ? ' warn' : ''), title: save.title, text: save.text }),
       el('span', { text: `X ${Math.round(ed.mouse.x)}  Y ${Math.round(ed.mouse.y)}` }),
       el('span', { text: `${Math.round(ed.zoom * 100)}%` }),
     ];
     sb.replaceChildren(...html);
   }
 
+  saveState() {
+    const st = this.store;
+    if (st.mode === 'server') return st.online ? { text: 'Sincronizado', title: 'Todas as mudanças estão no servidor' } : { text: 'Offline · salvo aqui', title: 'Sem conexão: as mudanças ficam neste navegador e sobem quando a conexão voltar', warn: true };
+    if (st.saveError) return { text: 'Não salvo', title: 'O navegador recusou a gravação local; salve uma cópia .grafo (Ctrl+S)', warn: true };
+    if (st.savePending) return { text: 'Salvando…', title: 'Gravando as últimas mudanças' };
+    const t = st.savedAt ? new Date(st.savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+    return { text: t ? `Salvo às ${t}` : 'Salvo', title: window.grafoDesktop ? 'Salvo neste computador' : 'Salvo neste navegador' };
+  }
+
   destroy() {
     this.closeMenu();
     this.abort.abort();
+    if (this.offSave) this.offSave();
+    if (this.emptyEl) this.emptyEl.remove();
+    this.closeFind();
   }
 
   bindKeys() {
@@ -1666,6 +1775,11 @@ export class UI {
       return;
     }
     if (ctrl) {
+      if (e.code === 'KeyF' && !e.altKey && !e.shiftKey) return run(() => this.findPanel());
+      if (e.code === 'KeyH' && !e.altKey && !e.shiftKey) return run(() => this.findPanel(true));
+      if (e.altKey && e.code === 'KeyM' && !e.shiftKey) return run(() => this.textDiagramDialog());
+      if (e.altKey && e.code === 'KeyX' && !e.shiftKey) return run(() => ed.connectSelection());
+      if (e.shiftKey && !e.altKey && (k === '"' || k === "'" || e.code === 'Quote')) return run(() => this.toggleSnapGrid());
       if (e.altKey && e.code === 'KeyC' && !e.shiftKey) return run(() => ed.copyProps());
       if (e.altKey && e.shiftKey && e.code === 'KeyV') return run(() => ed.pasteProps());
       if (e.altKey && e.shiftKey && e.code === 'KeyT') return run(() => ed.tidy());
@@ -1743,7 +1857,7 @@ export class UI {
     if (e.key === 'Tab' && onCanvas) return run(() => ed.selectSibling(e.shiftKey ? -1 : 1));
     if (e.key === 'F2') return run(() => this.renameSelection());
     if (e.key.startsWith('Arrow')) {
-      const d = e.shiftKey ? 10 : 1;
+      const d = e.shiftKey ? (ed.settings.snapGrid ? ed.gridStep() : 10) : 1;
       const v = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
       return run(() => ed.nudge(...v));
     }
@@ -1762,6 +1876,7 @@ export class UI {
       if (k === 'r') return run(() => { ed.settings.rulers = !ed.settings.rulers; ed.saveSettings(); });
       if (k === 'm') return run(() => { ed.settings.minimap = !ed.settings.minimap; ed.saveSettings(); });
       if (k === 'x') return run(() => ed.swapFillStroke());
+      if (k === 't') return run(() => this.tableDialog());
       if (k === 'g') return run(() => { ed.settings.guides = !ed.settings.guides; ed.saveSettings(); });
       if (k === 'c') return run(() => {
         this.rightTab = 'comments';
@@ -2301,6 +2416,218 @@ export class UI {
     return { close, input };
   }
 
+  textDiagramDialog(initial = '') {
+    const ed = this.ed;
+    let kind = 'auto';
+    let dir = 'auto';
+    const area = el('textarea', { class: 'code-area', rows: 13, spellcheck: false, maxlength: 50000, 'aria-label': 'Texto do diagrama', placeholder: 'flowchart TD\n  A[Início] --> B{Decisão}' }, initial || storage.get('textDiagram', '') || SAMPLE_FLOW);
+    const info = el('div', { class: 'hint text-diagram-info', 'aria-live': 'polite' });
+    const update = () => {
+      const m = parseTextDiagram(area.value, kind);
+      const parts = [`${m.kind === 'mermaid' ? 'Mermaid' : 'Lista com recuo'}`, `${m.nodes.length} ${m.nodes.length === 1 ? 'forma' : 'formas'}`, `${m.edges.length} ${m.edges.length === 1 ? 'conector' : 'conectores'}`];
+      if (m.groups.length) parts.push(`${m.groups.length} ${m.groups.length === 1 ? 'grupo' : 'grupos'}`);
+      if (m.warnings.length) parts.push(`${m.warnings.length} ${m.warnings.length === 1 ? 'linha ignorada' : 'linhas ignoradas'}`);
+      info.textContent = parts.join(' · ');
+      info.classList.toggle('warn', !m.nodes.length);
+      return m;
+    };
+    area.addEventListener('input', update);
+    area.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Tab' && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        const a = area.selectionStart;
+        const b = area.selectionEnd;
+        area.setRangeText('  ', a, b, 'end');
+        update();
+      }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (insert() !== false) m.close();
+      }
+    });
+    const kindSel = selectEl([['auto', 'Detectar formato'], ['mermaid', 'Mermaid (flowchart)'], ['outline', 'Lista com recuo (árvore)']], kind, (v) => { kind = v; update(); });
+    const dirSel = selectEl([['auto', 'Direção do texto'], ['TD', 'De cima para baixo'], ['LR', 'Da esquerda para a direita'], ['BT', 'De baixo para cima'], ['RL', 'Da direita para a esquerda']], dir, (v) => { dir = v; });
+    const fill = (t) => { area.value = t; update(); area.focus(); };
+    const body = el('div', { class: 'text-diagram' },
+      el('div', { class: 'row', style: { gap: '6px', marginBottom: '8px', flexWrap: 'wrap' } },
+        el('button', { class: 'btn small', onclick: () => fill(SAMPLE_FLOW) }, 'Exemplo: fluxograma'),
+        el('button', { class: 'btn small', onclick: () => fill(SAMPLE_OUTLINE) }, 'Exemplo: lista em árvore'),
+        el('button', { class: 'btn small ghost', onclick: () => fill('') }, 'Limpar')),
+      area, info,
+      el('div', { class: 'grid2', style: { marginTop: '8px' } }, kindSel, dirSel),
+      el('p', { class: 'hint', text: 'Mermaid: graph/flowchart com [ ] ( ) ([ ]) [( )] (( )) { } {{ }} [/ /], setas --> --- -.-> ==>, rótulos |texto| ou -- texto -->, & e subgraph. Lista: cada nível de recuo vira uma ramificação. Ctrl+Enter insere.' }));
+    const insert = () => {
+      const model = update();
+      if (!model.nodes.length) {
+        this.toast('Nada para desenhar: escreva um fluxograma Mermaid ou uma lista com recuo');
+        return false;
+      }
+      if (dir !== 'auto') model.dir = dir;
+      storage.set('textDiagram', area.value.slice(0, 20000));
+      const r = ed.insertDiagram(model);
+      const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+      if (r) this.toast(`${plural(r.nodes, 'forma', 'formas')} e ${plural(r.edges, 'conector', 'conectores')} inseridos${r.groups ? ` em ${plural(r.groups, 'grupo', 'grupos')}` : ''}`);
+      return true;
+    };
+    const m = this.modal('Diagrama a partir de texto', body, [{ label: 'Cancelar' }, { label: 'Inserir no quadro', primary: true, run: insert }]);
+    m.body.closest('.modal').classList.add('wide');
+    update();
+    return m;
+  }
+
+  async copyMermaid() {
+    const text = this.ed.mermaidFor([...this.ed.sel]);
+    if (!text) return this.toast('Nenhuma forma para converter em Mermaid');
+    try {
+      await navigator.clipboard.writeText(text);
+      this.toast('Diagrama copiado como Mermaid');
+    } catch {
+      const area = el('textarea', { class: 'code-area', rows: 12, readonly: true, 'aria-label': 'Código Mermaid' }, text);
+      area.addEventListener('keydown', (e) => e.stopPropagation());
+      this.modal('Código Mermaid', area, [{ label: 'Fechar', primary: true }]);
+      setTimeout(() => area.select(), 40);
+    }
+  }
+
+  tableDialog(at = null) {
+    const ed = this.ed;
+    const last = storage.get('tableSize', { rows: 4, cols: 3, header: true });
+    let rows = clamp(Number(last.rows) || 4, 1, 200);
+    let cols = clamp(Number(last.cols) || 3, 1, 24);
+    let header = last.header !== false;
+    const body = el('div', {},
+      el('div', { class: 'grid2' },
+        this.num('Linhas', rows, (v) => { rows = clamp(Math.round(v), 1, 200); }, { min: 1, max: 200, key: 'trows', title: 'Número de linhas' }),
+        this.num('Colunas', cols, (v) => { cols = clamp(Math.round(v), 1, 24); }, { min: 1, max: 24, key: 'tcols', title: 'Número de colunas' })),
+      el('label', { class: 'chk', style: { marginTop: '10px' } }, checkbox(header, (v) => { header = v; }), 'Primeira linha como cabeçalho'),
+      el('p', { class: 'hint', text: 'A tabela entra como um frame com uma célula por forma: duplo clique edita o texto, Tab anda entre as camadas e o painel Design muda cores e bordas.' }));
+    this.modal('Inserir tabela', body, [{ label: 'Cancelar' }, { label: 'Inserir', primary: true, run: () => {
+      storage.set('tableSize', { rows, cols, header });
+      ed.insertTable({ rows, cols, header, at: at || ed.viewportCenter() });
+    } }]);
+  }
+
+  closeFind() {
+    const p = document.querySelector('.find-panel');
+    if (p) p.remove();
+    this.findRefresh = null;
+  }
+
+  findPanel(replace = false) {
+    const open = document.querySelector('.find-panel');
+    if (open) {
+      if (replace) open.classList.add('with-replace');
+      const f = open.querySelector(replace ? '.find-replace' : '.find-query');
+      if (f) {
+        f.focus();
+        f.select();
+      }
+      return open;
+    }
+    const ed = this.ed;
+    const opts = { matchCase: false, wholeWord: false, allPages: storage.get('findAllPages', true) };
+    let matches = [];
+    let cur = -1;
+    let shown = false;
+    const q = el('input', { type: 'text', class: 'find-query', placeholder: 'Localizar texto', 'aria-label': 'Localizar', spellcheck: false, autocomplete: 'off' });
+    const r = el('input', { type: 'text', class: 'find-replace', placeholder: 'Substituir por', 'aria-label': 'Substituir por', spellcheck: false, autocomplete: 'off' });
+    const count = el('span', { class: 'find-count', 'aria-live': 'polite' });
+    const panel = el('div', { class: 'find-panel' + (replace ? ' with-replace' : ''), role: 'search', 'aria-label': 'Localizar e substituir' });
+    const paint = () => {
+      const total = matches.reduce((s, m) => s + m.count, 0);
+      count.textContent = !q.value ? '' : matches.length ? `${cur + 1} de ${matches.length}${total !== matches.length ? ` · ${total} ocorrências` : ''}` : 'Nada encontrado';
+      count.classList.toggle('none', !!q.value && !matches.length);
+    };
+    const search = (keep = false) => {
+      const prev = matches[cur]?.id;
+      matches = ed.findText(q.value, opts);
+      const again = keep && prev ? matches.findIndex((m) => m.id === prev) : -1;
+      cur = again >= 0 ? again : matches.length ? Math.min(Math.max(cur, 0), matches.length - 1) : -1;
+      if (!keep) {
+        cur = matches.length ? 0 : -1;
+        shown = false;
+      }
+      paint();
+    };
+    const go = (d) => {
+      if (!matches.length) return;
+      if (shown) cur = (cur + d + matches.length) % matches.length;
+      shown = true;
+      paint();
+      ed.focusNode(matches[cur].id);
+    };
+    const replaceOne = () => {
+      if (!matches.length) return;
+      if (!shown) return go(0);
+      const n = ed.replaceText([matches[cur].id], q.value, r.value, opts);
+      if (!n) this.toast('Camada bloqueada: desbloqueie para substituir');
+      search(true);
+      if (matches.length) {
+        cur = Math.min(cur, matches.length - 1);
+        ed.focusNode(matches[cur].id);
+      }
+    };
+    const replaceAll = () => {
+      if (!matches.length) return;
+      const ids = matches.map((m) => m.id);
+      const n = ed.replaceText(ids, q.value, r.value, opts);
+      this.toast(n ? `${n} ${n === 1 ? 'camada alterada' : 'camadas alteradas'}` : 'Nada substituído: as camadas estão bloqueadas');
+      search();
+    };
+    const keys = (e, onEnter) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeFind();
+        ed.overlay.focus({ preventScroll: true });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        onEnter(e);
+      } else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyF' || e.code === 'KeyH')) {
+        e.preventDefault();
+        if (e.code === 'KeyH') panel.classList.add('with-replace');
+        (e.code === 'KeyH' ? r : q).focus();
+      }
+    };
+    q.addEventListener('input', () => search());
+    q.addEventListener('keydown', (e) => keys(e, (ev) => go(ev.shiftKey ? -1 : 1)));
+    r.addEventListener('keydown', (e) => keys(e, (ev) => (ev.ctrlKey || ev.metaKey ? replaceAll() : replaceOne())));
+    const opt = (label, title, key) => {
+      const b = el('button', { class: 'icon-btn find-opt' + (opts[key] ? ' active' : ''), title, 'aria-label': title, 'aria-pressed': String(!!opts[key]), onclick: () => {
+        opts[key] = !opts[key];
+        b.classList.toggle('active', opts[key]);
+        b.setAttribute('aria-pressed', String(opts[key]));
+        if (key === 'allPages') storage.set('findAllPages', opts.allPages);
+        search();
+        q.focus();
+      } }, label);
+      return b;
+    };
+    const toggleReplace = el('button', { class: 'icon-btn', title: 'Mostrar substituir (Ctrl+H)', 'aria-label': 'Mostrar substituir', onclick: () => {
+      panel.classList.toggle('with-replace');
+      (panel.classList.contains('with-replace') ? r : q).focus();
+    } }, icon('chevronDown', 14));
+    panel.append(
+      el('div', { class: 'find-row' }, toggleReplace, icon('search', 14), q, count,
+        el('button', { class: 'icon-btn', title: 'Anterior (Shift+Enter)', 'aria-label': 'Resultado anterior', onclick: () => go(-1) }, '↑'),
+        el('button', { class: 'icon-btn', title: 'Próximo (Enter)', 'aria-label': 'Próximo resultado', onclick: () => go(1) }, '↓'),
+        opt('Aa', 'Diferenciar maiúsculas e minúsculas', 'matchCase'),
+        opt('ab', 'Só palavras inteiras', 'wholeWord'),
+        opt(icon('page', 14), 'Buscar em todas as páginas', 'allPages'),
+        el('button', { class: 'icon-btn', title: 'Fechar (Esc)', 'aria-label': 'Fechar busca', onclick: () => this.closeFind() }, icon('close', 14))),
+      el('div', { class: 'find-row replace-row' }, el('span', { class: 'find-pad' }), r,
+        el('button', { class: 'btn small', title: 'Substituir nesta camada (Enter)', onclick: replaceOne }, 'Substituir'),
+        el('button', { class: 'btn small', title: 'Substituir em todas (Ctrl+Enter)', onclick: replaceAll }, 'Tudo')));
+    this.dom.canvasWrap.append(panel);
+    this.findRefresh = () => {
+      if (!document.body.contains(panel)) return (this.findRefresh = null);
+      if (q.value) search(true);
+    };
+    setTimeout(() => (replace ? r : q).focus(), 20);
+    return panel;
+  }
+
   shortcutsDialog() {
     const rows = [
       ['Mover / Escala', 'V / K'], ['Conta-gotas', 'I'], ['Frame / Seção', 'F / Shift+S'], ['Retângulo / Elipse', 'R / O'], ['Linha / Seta', 'L / Shift+L'], ['Polígono / Estrela', 'Shift+Y / *'], ['Caneta / Lápis', 'P / Shift+P'], ['Texto', 'T'], ['Nota adesiva', 'S'], ['Conector', 'X'], ['Mão', 'H ou Espaço'], ['Comentário', 'C'], ['Imagem', 'Ctrl+Shift+K'],
@@ -2309,6 +2636,7 @@ export class UI {
       ['Trazer para frente / Enviar para trás', 'Ctrl+Shift+] / ['], ['Avançar / Recuar', 'Ctrl+] / ['], ['Alinhar (esq., centro, dir.)', 'Alt+A / Alt+H / Alt+D'], ['Alinhar (topo, meio, base)', 'Alt+W / Alt+V / Alt+S'], ['Distribuir', 'Ctrl+Alt+H / V'], ['Espelhar', 'Shift+H / Shift+V'], ['Mover 1 px / 10 px', 'Setas / Shift+Setas'], ['Opacidade 10%–100%', '1 … 0'],
       ['Mostrar/ocultar', 'Ctrl+Shift+H'], ['Bloquear', 'Ctrl+Shift+L'], ['Layout automático do diagrama', 'Ctrl+Shift+Y'],
       ['Ações rápidas', 'Ctrl+K ou Ctrl+P'], ['Medir distâncias', 'Alt sobre outro objeto'], ['Copiar / colar propriedades', 'Ctrl+Alt+C / Ctrl+Alt+Shift+V'], ['Organizar em grade', 'Ctrl+Alt+Shift+T'], ['Próxima / anterior camada', 'Tab / Shift+Tab'], ['Trocar preenchimento e contorno', 'Shift+X'], ['Duplicar repetindo o deslocamento', 'Ctrl+D após mover a cópia'], ['Renomear (em lote com várias)', 'F2'], ['Ajustar frame ao conteúdo', 'Ctrl+Alt+Shift+R'], ['Copiar como PNG', 'Ctrl+Shift+C'], ['Guias: criar / mostrar', 'Arrastar da régua / Shift+G'], ['Recolher camadas', 'Alt+L'],
+      ['Localizar / substituir', 'Ctrl+F / Ctrl+H'], ['Diagrama a partir de texto (Mermaid ou lista)', 'Ctrl+Alt+M'], ['Inserir tabela', 'Shift+T'], ['Conectar em sequência', 'Ctrl+Alt+X'], ['Grade de encaixe', "Ctrl+Shift+'"], ['Mover pela grade', 'Shift+Setas com a grade ligada'],
       ['Zoom', 'Ctrl+roda, Ctrl++ / Ctrl+-'], ['Ajustar tudo / seleção / 100%', 'Shift+1 / Shift+2 / Shift+0'], ['Réguas / Minimapa', 'Shift+R / Shift+M'], ['Grade de pixels', "Ctrl+'"], ['Contornos', 'Ctrl+Shift+O'], ['Ocultar interface', 'Ctrl+\\'], ['Tema', 'Alt+T'],
       ['Salvar cópia .grafo / Abrir', 'Ctrl+S / Ctrl+O'], ['Salvar versão', 'Ctrl+Alt+S'], ['Exportar', 'Ctrl+Shift+E'], ['Apresentar', 'Ctrl+Alt+Enter'], ['Atalhos', 'Ctrl+/'],
       ['Restringir ângulo e proporção', 'Shift ao arrastar'], ['Desenhar do centro', 'Alt ao arrastar'], ['Desligar encaixe', 'Ctrl ao arrastar'],

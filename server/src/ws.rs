@@ -19,6 +19,7 @@ use yrs::updates::decoder::DecoderV1;
 use yrs::updates::encoder::Encode;
 use yrs::ClientID;
 
+use crate::metrics::{self, METRICS};
 use crate::room::{self, get_room, presence_key, Room};
 use crate::security::{client_ip, constant_time_eq};
 use crate::state::Shared;
@@ -87,6 +88,7 @@ pub async fn handler(
 async fn run(app: Shared, room: Arc<Room>, socket: WebSocket, access: Access, ip: String) {
     let conn = room::next_conn_id();
     room.conns.fetch_add(1, Ordering::SeqCst);
+    metrics::inc(&METRICS.ws_connections_total);
     room.generation.fetch_add(1, Ordering::SeqCst);
     tracing::debug!(file = %room.id, conn, %ip, "conexão aberta");
     let (mut sink, mut stream) = socket.split();
@@ -139,6 +141,7 @@ async fn run(app: Shared, room: Arc<Room>, socket: WebSocket, access: Access, ip
         match msg {
             WsMessage::Binary(data) => {
                 if let Err(err) = handle_frame(&app, &room, conn, access, &data, &out_tx).await {
+                    metrics::inc(&METRICS.frames_rejected_total);
                     tracing::debug!(%err, conn, "mensagem recusada");
                 }
             }
@@ -184,6 +187,8 @@ async fn handle_frame(
                     continue;
                 }
                 room.apply_update(&update)?;
+                metrics::inc(&METRICS.updates_applied_total);
+                metrics::add(&METRICS.update_bytes_total, update.len() as u64);
                 room.broadcast_update(conn, &update);
                 let _ = room.persist.send(room::PersistCmd::Update(update.clone()));
                 room::publish_update(app, room.id, update);

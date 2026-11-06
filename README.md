@@ -17,13 +17,13 @@
 
 ---
 
-> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as três maneiras de rodar (app desktop, servidor completo e dois cliques no HTML), o tutorial rápido, a galeria **Novo quadro** com os modelos, os padrões de projeto e a aula, a tela, cada ferramenta e atalho (inclusive ações rápidas, medição, conta-gotas e guias), frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
+> **Manual completo:** [`Manual-Grafo.pdf`](Manual-Grafo.pdf) explica as três maneiras de rodar (app desktop, servidor completo e dois cliques no HTML), o tutorial rápido, a galeria **Novo quadro** com os modelos, os padrões de projeto e a aula, a tela, cada ferramenta e atalho (inclusive ações rápidas, medição, conta-gotas e guias), frames, auto layout, restrições, componentes, estilos, booleanas, as bibliotecas de formas, conectores, contêineres e raias, layout automático, dados em CSV e organograma, protótipo e apresentação, comentários, versões, colaboração, importação e exportação, a arquitetura, a API, a configuração, a segurança, os testes, a solução de problemas e as novidades da 1.3.0 (diagrama a partir de texto, localizar e substituir, tabelas, grade de encaixe, estilo rápido e métricas do servidor), passo a passo (cópia em [`docs/`](docs/Manual-Grafo.pdf)).
 
-> **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL e as regras de integridade, retenção e segurança dos dados.
+> **Banco de dados:** [`Banco-de-Dados-Grafo.pdf`](Banco-de-Dados-Grafo.pdf) traz o diagrama de relacionamentos geral e por domínio, todas as tabelas com campos, tipos, chaves e restrições, os tipos ENUM e índices, o ciclo de vida do documento colaborativo (update → sequência → compactação → versão), o formato binário Yrs, as chaves do Redis e os subjects do NATS, consultas prontas, como preparar o PostgreSQL, as regras de integridade, retenção e segurança dos dados e o que a 1.3.0 muda (nada no esquema; só propriedades novas dentro do documento e as métricas).
 
-> **Versão 1.2.0 (Atual):** chegou o **Novo quadro** (Ctrl+Alt+N): escolha um tipo de diagrama e o quadro abre já montado para editar, entre **63 modelos** em dez categorias (UML e SysML, processos, arquitetura, dados, infraestrutura, segurança, testes, UX e produto, gestão e análise) e **46 padrões de projeto** que abrem como diagrama ou como aula. No modo **Aula** você começa por uma raiz no topo e desce pelas ramificações, abre as ideias para os lados ou conta a história no sentido inverso; Tab cria uma ramificação e Enter uma ideia irmã. Se preferir, comece em branco. Também chegaram ferramentas de edição profissional: **ações rápidas** (Ctrl+K) para achar qualquer comando, ferramenta, página, forma ou camada pelo nome; **medição de distâncias** com Alt; **conta-gotas** (I); **guias** puxadas das réguas, com encaixe; **copiar e colar propriedades**; **organizar em grade**; **renomear em lote** (F2); **travar proporção**; **ajustar frame ao conteúdo**; **maiúsculas e minúsculas** no texto; **copiar como PNG**; busca no painel **Camadas**; Tab para andar pelas camadas e Ctrl+D que repete o último deslocamento. O **espelhar** agora inverte de verdade formas, imagens e seleções inteiras. Nada muda na API nem no banco; arquivos `.grafo` antigos abrem normalmente. Detalhes em [Novo quadro: modelos e aula (1.2.0)](#novo-quadro-modelos-e-aula-120) e [Ferramentas profissionais (1.2.0)](#ferramentas-profissionais-120).
+> **Versão 1.3.0 (Atual):** chegou o **diagrama a partir de texto** (Ctrl+Alt+M): escreva um fluxograma em **Mermaid** ou uma **lista com recuo** e o Grafo desenha as formas, os conectores, os rótulos e os grupos já organizados, e **Copiar como Mermaid** faz o caminho de volta. Também chegaram **localizar e substituir** em todas as páginas (Ctrl+F / Ctrl+H), **tabelas** (Shift+T ou a partir de um CSV), **grade de encaixe** configurável, **espaço exato entre itens**, **estilo rápido** com oito combinações de cor, **conectar em sequência** (Ctrl+Alt+X), **paletas de cores** da interface, o **indicador de salvamento** na barra de status, atalhos na **página vazia** e a rota **`/api/metrics`** no servidor. Corrigidos: o Tab não cobre mais o canvas com a camada de acessibilidade do PixiJS e os botões do painel Design mostram o estado novo na hora. Nada muda no banco nem no formato `.grafo`. Detalhes em [Diagrama a partir de texto, busca e tabelas (1.3.0)](#diagrama-a-partir-de-texto-busca-e-tabelas-130).
 
-> **Versão 1.1.0 (Anterior):** chegou o **app desktop para Windows**: o [`Grafo.exe`](Grafo.exe) abre o editor maximizado numa janela própria, sem servidor, sem navegador e sem instalar nada, com atalho no menu Iniciar e a janela **Salvar como** do Windows para salvar e exportar. Na primeira abertura, um **tutorial rápido** mostra o que cada ferramenta faz e onde fica cada painel (dá para pular). O logo no canto da tela ficou com fundo branco. Nada muda no formato `.grafo`, na API nem no banco. Detalhes em [App desktop e tutorial rápido (1.1.0)](#app-desktop-e-tutorial-rápido-110).
+> **Versão 1.2.0 (Anterior):** chegou o **Novo quadro** (Ctrl+Alt+N): escolha um tipo de diagrama e o quadro abre já montado para editar, entre **63 modelos** em dez categorias (UML e SysML, processos, arquitetura, dados, infraestrutura, segurança, testes, UX e produto, gestão e análise) e **46 padrões de projeto** que abrem como diagrama ou como aula. No modo **Aula** você começa por uma raiz no topo e desce pelas ramificações, abre as ideias para os lados ou conta a história no sentido inverso; Tab cria uma ramificação e Enter uma ideia irmã. Se preferir, comece em branco. Também chegaram ferramentas de edição profissional: **ações rápidas** (Ctrl+K) para achar qualquer comando, ferramenta, página, forma ou camada pelo nome; **medição de distâncias** com Alt; **conta-gotas** (I); **guias** puxadas das réguas, com encaixe; **copiar e colar propriedades**; **organizar em grade**; **renomear em lote** (F2); **travar proporção**; **ajustar frame ao conteúdo**; **maiúsculas e minúsculas** no texto; **copiar como PNG**; busca no painel **Camadas**; Tab para andar pelas camadas e Ctrl+D que repete o último deslocamento. O **espelhar** agora inverte de verdade formas, imagens e seleções inteiras. Nada muda na API nem no banco; arquivos `.grafo` antigos abrem normalmente. Detalhes em [Novo quadro: modelos e aula (1.2.0)](#novo-quadro-modelos-e-aula-120) e [Ferramentas profissionais (1.2.0)](#ferramentas-profissionais-120).
 
 <p align="center">
   <img src="docs/images/tela-editor.png" alt="Editor com duas telas de celular, um componente de botão e as notas, com páginas e camadas à esquerda e o painel Design à direita">
@@ -37,16 +37,19 @@
 - **Componentes e estilos:** transforme qualquer seleção em componente e crie instâncias que acompanham o principal, com **substituições** de texto e cor, restauração e desanexar. Estilos de cor e de texto com nome: editar o estilo muda todos os objetos que o usam.
 - **Aparência:** cor sólida com opacidade, degradê linear, imagem (preencher, ajustar ou esticar), contorno dentro, no centro ou fora, contínuo, tracejado ou pontilhado, sombra projetada, desfoque, opacidade e **16 modos de mistura**. Texto com seis famílias, peso, tamanho, altura de linha, espaçamento, alinhamento horizontal e vertical, itálico e sublinhado.
 - **Operações booleanas:** união, subtração, interseção e exclusão, calculadas no núcleo C++ e editáveis depois (as formas originais continuam dentro).
+- **Diagrama a partir de texto:** escreva um fluxograma em Mermaid (`flowchart TD`, `A[Início] --> B{Decisão}`, rótulos, setas tracejadas e grossas, `&` e `subgraph`) ou uma lista com recuo e o quadro aparece montado e organizado; **Copiar como Mermaid** exporta a seleção ou a página de volta para texto.
 - **Diagramas:** **107 formas** em oito bibliotecas (básicas, fluxograma, UML, entidade-relacionamento, BPMN, rede e nuvem, organograma, wireframe e interface). Conectores **retos, ortogonais ou curvos** presos aos pontos de conexão, que desviam das outras formas pelo roteador A* do núcleo, com rótulo e dez tipos de ponta (inclusive pé-de-galinha do ER). Passe o mouse numa forma e puxe um ponto para ligar ou clonar.
 - **Contêineres e layout automático:** piscinas, raias, limites de rede e equipes levam junto as formas de dentro. **Organizar → Layout automático** reorganiza o diagrama em camadas (Sugiyama) e anima as formas até o lugar.
 - **Dados:** importe um CSV, ligue uma forma a uma linha e use `{{coluna}}` no texto; gere cartões ou um **organograma** inteiro (cartões, conectores e layout) a partir das colunas de id e gestor.
 - **Protótipo e apresentação:** ligue qualquer objeto a um frame, escolha a transição e apresente em tela cheia, seguindo os links ou passando os frames como slides.
 - **Colaboração em tempo real:** o documento é um CRDT (Yjs no editor, Yrs no servidor). Cada pessoa aparece no topo e com o próprio cursor no canvas, a seleção dos outros fica destacada na cor deles, e desfazer só desfaz o que é seu. Sem o servidor, as abas abertas do mesmo arquivo colaboram entre si.
+- **Localizar e substituir:** Ctrl+F acha qualquer texto em todas as páginas (com maiúsculas e palavra inteira opcionais) e leva até ele; Ctrl+H troca em uma camada ou em todas de uma vez, com um só Ctrl+Z para desfazer.
+- **Tabelas e grade:** tabelas de qualquer tamanho (ou geradas de um CSV), grade de encaixe de 4 a 50 px, espaço exato entre itens, estilo rápido e conectar em sequência.
 - **Comentários e versões:** pinos de comentário com conversa, respostas, resolver e reabrir; versões nomeadas que voltam com um clique (e o Ctrl+Z desfaz a volta).
 - **Arquivos:** várias páginas por arquivo, arquivos recentes, salvar e abrir `.grafo`, importar imagens e SVG (arrastando, colando ou pelo menu), colar texto vira texto, exportar PNG, JPG, SVG e PDF (um frame por página) e copiar como SVG.
 - **App desktop:** o [`Grafo.exe`](Grafo.exe) abre maximizado numa janela própria do Windows, sem servidor e sem navegador; F11 alterna a tela cheia, os arquivos ficam neste computador e salvar ou exportar abre a janela **Salvar como** do Windows.
 - **Tutorial rápido:** na primeira vez que o Grafo abre, ele pergunta se você quer um tour de nove passos pelas ferramentas, painéis, navegação, colaboração e salvar. Dá para pular, e ele fica em **Ajuda → Tutorial rápido**.
-- **Leve e fluido:** a tela só é redesenhada quando algo muda, zoom de 2% a 25.600% no ponto do cursor (roda, pinça ou teclado, com animação suave), réguas, minimapa, grade de pixels, temas claro e escuro e interface que some com Ctrl+\\.
+- **Leve e fluido:** a barra de status mostra quando o arquivo foi salvo, a página vazia oferece os primeiros passos e a tela só é redesenhada quando algo muda, zoom de 2% a 25.600% no ponto do cursor (roda, pinça ou teclado, com animação suave), réguas, minimapa, grade de pixels, temas claro e escuro e interface que some com Ctrl+\\.
 - **Paletas de cores:** o botão de paleta no topo troca a interface entre a paleta original do Grafo e as do Bento, do Sonda e do Nexo, todas com versão clara e escura. A escolha fica salva e volta na próxima vez. Detalhes em [Paletas de cores](#paletas-de-cores).
 - **Seguro por padrão:** Content-Security-Policy restrita sem `eval`, nenhum dado do usuário entra como HTML, SVG importado é limpo, o servidor limita tamanho e taxa, confere UUIDs e tipos de imagem pelos bytes e degrada sem cair quando falta um serviço. Detalhes em [Qualidade e segurança](#qualidade-e-segurança).
 
@@ -72,6 +75,44 @@ O botão com o ícone de paleta, no canto superior direito ao lado do botão de 
 | **Nexo** | paleta original do Nexo | papel `#E8E8E8`, pó `#D9D1CE`, pedra `#BAB7B5`, malva `#AB9D9D`, tinta `#000000` | fundo `#000000`, superfície `#121111`, malva `#AB9D9D` |
 
 A escolha fica salva neste navegador (ou no app desktop) e é aplicada antes de a tela aparecer. As paletas são variáveis CSS em `:root[data-palette]` no [`web/css/grafo.css`](web/css/grafo.css), a lista do menu fica em `PALETTES` no [`web/src/util.js`](web/src/util.js), e o canvas lê o fundo e as cores de seleção dessas mesmas variáveis.
+
+## Diagrama a partir de texto, busca e tabelas (1.3.0)
+
+<p align="center">
+  <img src="docs/images/tela-texto-diagrama.png" width="49%" alt="Janela Diagrama a partir de texto com um fluxograma Mermaid de pedidos, a contagem de formas e conectores e as opções de formato e direção">
+  <img src="docs/images/tela-texto-resultado.png" width="49%" alt="O fluxograma de pedidos inserido no quadro, com decisões, rótulos sim e não, uma volta tracejada e a seção Saída">
+</p>
+
+<p align="center">
+  <img src="docs/images/tela-localizar.png" width="49%" alt="Busca por pedido em todas as páginas, no resultado 2 de 6, com o campo Substituir aberto">
+  <img src="docs/images/tela-tabela.png" width="49%" alt="Tabela de equipe com cabeçalho, grade de encaixe pontilhada e três formas ligadas em sequência com o estilo rápido Palha">
+</p>
+
+| Recurso | Como usar | O que faz |
+|---|---|---|
+| Diagrama a partir de texto | Ctrl+Alt+M ou **Arquivo → Diagrama a partir de texto…** | Lê Mermaid (`graph`/`flowchart` com `TD`, `LR`, `BT` ou `RL`) ou uma lista com recuo, mostra quantas formas e conectores vão entrar e desenha tudo organizado em camadas; Ctrl+Enter insere |
+| Copiar como Mermaid | **Arquivo** ou clique direito | Converte a seleção (ou a página) em `flowchart`, mantendo tipos de forma, rótulos e setas tracejadas, grossas ou sem ponta |
+| Localizar e substituir | Ctrl+F / Ctrl+H | Busca em textos, formas, notas, seções e rótulos de conectores, na página ou em todas; Enter vai para o próximo, **Tudo** (Ctrl+Enter) substitui em todas as camadas com um só desfazer |
+| Inserir tabela | Shift+T, **Objeto** ou clique direito | Frame com uma forma por célula, cabeçalho opcional, até 200 × 24 |
+| Tabela a partir de CSV | Aba **Dados → Tabela** | Monta a tabela com as colunas do CSV no cabeçalho e a largura ajustada ao conteúdo |
+| Grade de encaixe | Ctrl+Shift+' ou **Exibir** | Pontos no canvas e encaixe ao desenhar, mover e redimensionar em passos de 4 a 50 px; Shift+setas anda um passo |
+| Espaço entre os itens | Campos ↔ e ↕ com vários itens | Mostra o espaço atual e aplica um espaço igual entre os itens selecionados |
+| Estilo rápido | Seção **Estilo rápido** do painel Design | Oito combinações de preenchimento, contorno e cor do texto da paleta do Grafo |
+| Conectar em sequência | Ctrl+Alt+X ou **Organizar** | Liga as formas selecionadas na ordem de leitura, sem repetir ligações |
+| Indicador de salvamento | Barra de status | Salvando…, Salvo às 14:32, Sincronizado, Offline ou Não salvo (com a dica de salvar uma cópia) |
+| Página vazia | Abra ou crie uma página | Atalhos para Novo quadro, Diagrama de texto, Tabela e Imagem e as teclas mais usadas |
+
+| Mermaid | Forma | Mermaid | Forma |
+|---|---|---|---|
+| `A[texto]` | Processo | `A{texto}` | Decisão |
+| `A(texto)` | Arredondado | `A{{texto}}` | Preparação |
+| `A([texto])` | Início / fim | `A[/texto/]` | Dados |
+| `A[[texto]]` | Processo predefinido | `A[(texto)]` | Banco de dados |
+| `A((texto))` | Círculo | `A>texto]` | Divisa |
+
+Setas: `-->` (com ponta), `---` (sem ponta), `-.->` (tracejada), `==>` (grossa), `-->|rótulo|` ou `-- rótulo -->` e `A & B --> C`. Um `subgraph` vira uma seção quando não encosta em outras formas. O texto aceita até 400 formas e 800 conectores por vez.
+
+Também foram corrigidos: o Tab ativava uma camada invisível de acessibilidade do PixiJS sobre o canvas, que engolia o próximo clique; os botões do painel Design (itálico, alinhamento, estilos) só mostravam o estado novo na próxima seleção; e cada arquivo aberto deixava um ouvinte de saída da página para trás.
 
 ## Novo quadro: modelos e aula (1.2.0)
 
@@ -227,6 +268,11 @@ Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que f
 | Distribuir / organizar em grade | Ctrl+Alt+H / Ctrl+Alt+V / Ctrl+Alt+Shift+T |
 | Espelhar / trocar preenchimento e contorno | Shift+H / Shift+V / Shift+X |
 | Ajustar frame ao conteúdo | Ctrl+Alt+Shift+R |
+| Localizar / localizar e substituir | Ctrl+F / Ctrl+H |
+| Diagrama a partir de texto | Ctrl+Alt+M |
+| Inserir tabela | Shift+T |
+| Conectar em sequência | Ctrl+Alt+X |
+| Grade de encaixe / mover um passo da grade | Ctrl+Shift+' / Shift+setas |
 | Mostrar/ocultar / bloquear | Ctrl+Shift+H / Ctrl+Shift+L |
 | Opacidade de 10% a 100% | 1 … 9, 0 |
 | Layout automático do diagrama | Ctrl+Shift+Y |
@@ -243,14 +289,14 @@ Cada ferramenta aparece com o ícone, o nome, o atalho e uma frase sobre o que f
 
 | Menu | Comandos |
 |---|---|
-| Arquivo | Novo quadro (modelos e aula), novo arquivo em branco, abrir `.grafo`, arquivos recentes, salvar cópia `.grafo`, salvar versão, histórico de versões, importar imagem ou SVG, importar CSV, exportar |
-| Editar | Desfazer, refazer, copiar, recortar, colar, duplicar, excluir, copiar e colar propriedades, selecionar tudo, próxima e anterior camada, selecionar mesma cor e mesmo tipo, ações rápidas |
-| Exibir | Réguas, grade de pixels, minimapa, contornos, guias, remover guias da página, encaixe inteligente, encaixe em pixels, links de protótipo, render WebGPU, zoom, tema e ocultar interface |
-| Objeto | Agrupar, desagrupar, frame da seleção, auto layout, ajustar ao conteúdo, renomear, criar componente, desanexar instância, booleanas, espelhar, trocar preenchimento e contorno, travar proporção, bloquear, ocultar |
-| Organizar | Ordem das camadas, alinhar, distribuir, organizar em grade e layout automático do diagrama nas duas direções |
+| Arquivo | Novo quadro (modelos e aula), diagrama a partir de texto, novo arquivo em branco, abrir `.grafo`, arquivos recentes, salvar cópia `.grafo`, salvar versão, histórico de versões, importar imagem ou SVG, importar CSV, exportar, copiar diagrama como Mermaid |
+| Editar | Desfazer, refazer, copiar, recortar, colar, duplicar, excluir, copiar e colar propriedades, selecionar tudo, próxima e anterior camada, selecionar mesma cor e mesmo tipo, localizar e substituir, ações rápidas |
+| Exibir | Réguas, grade de pixels, minimapa, contornos, guias, remover guias da página, grade de encaixe, encaixe inteligente, encaixe em pixels, links de protótipo, render WebGPU, zoom, tema e ocultar interface |
+| Objeto | Agrupar, desagrupar, frame da seleção, auto layout, ajustar ao conteúdo, renomear, inserir tabela, criar componente, desanexar instância, booleanas, espelhar, trocar preenchimento e contorno, travar proporção, bloquear, ocultar |
+| Organizar | Ordem das camadas, alinhar, distribuir, organizar em grade, conectar em sequência e layout automático do diagrama nas duas direções |
 | Ajuda | **Ações rápidas**, **tutorial rápido**, atalhos, seu nome e cor, sobre o Grafo |
 
-O clique direito no canvas abre os comandos mais usados, inclusive **Colar aqui**, **Copiar e colar propriedades**, **Organizar em grade**, **Copiar como PNG**, **Copiar como SVG** e **Renomear**.
+O clique direito no canvas abre os comandos mais usados, inclusive **Colar aqui**, **Copiar e colar propriedades**, **Organizar em grade**, **Copiar como PNG**, **Copiar como SVG**, **Copiar como Mermaid**, **Conectar em sequência** e **Renomear**; no canvas vazio, **Diagrama a partir de texto** e **Inserir tabela aqui**.
 
 ## Diagramas
 
@@ -417,6 +463,12 @@ curl -X POST http://localhost:8080/api/files \
   -d '{"name":"Fluxo de cadastro","kind":"diagram"}'
 ```
 
+Métricas no formato do Prometheus (com `GRAFO_API_TOKEN` definido, envie o token):
+
+```bash
+curl -H "Authorization: Bearer $GRAFO_API_TOKEN" http://localhost:8080/api/metrics
+```
+
 Listar as versões de um arquivo:
 
 ```bash
@@ -426,6 +478,7 @@ curl http://localhost:8080/api/files/<id>/versions
 | Método e rota | Para quê |
 |---|---|
 | `GET /api/health` | Estado do servidor, do PostgreSQL, do Redis e do NATS |
+| `GET /api/metrics` | Métricas no formato do Prometheus: salas, conexões, participantes, updates aplicados e recusados, limite de taxa e serviços disponíveis (exige o token quando ele está definido) |
 | `GET`, `POST /api/files` | Listar e criar arquivos (o POST aceita o `id` gerado no editor e é idempotente) |
 | `GET`, `PATCH`, `DELETE /api/files/{id}` | Ler, renomear, mudar o tipo e excluir |
 | `GET`, `POST /api/files/{id}/versions` | Listar e criar versões |
@@ -465,7 +518,7 @@ Tipos de nó: `frame`, `section`, `group`, `rect`, `ellipse`, `polygon`, `star`,
 | `REDIS_URL` | — | Redis; sem ela, presença e limite em memória |
 | `NATS_URL` | — | NATS JetStream; sem ela, uma instância só |
 | `GRAFO_STATIC_DIR` | `web/dist` | Pasta do editor empacotado |
-| `GRAFO_API_TOKEN` | — | Se definido (24+ caracteres), exige `Authorization: Bearer` nas escritas REST e `?token=` no WebSocket |
+| `GRAFO_API_TOKEN` | — | Se definido (24+ caracteres), exige `Authorization: Bearer` nas escritas REST e em `/api/metrics`, e `?token=` no WebSocket |
 | `GRAFO_MAX_UPDATE_BYTES` | `8388608` | Tamanho máximo de um update |
 | `GRAFO_SNAPSHOT_EVERY` | `200` | Updates entre compactações |
 | `GRAFO_RATE_LIMIT` | `120` | Requisições por minuto por IP |
@@ -506,17 +559,18 @@ Diagramas, campos, restrições, índices e consultas prontas estão no [`Banco-
 | Suíte | O que cobre | Resultado |
 |---|---|---|
 | Núcleo C++/WASM (33 testes) | Entradas degeneradas e NaN, fuzz de 300 pares de polígonos nas quatro booleanas, rota com 500 obstáculos, índice com 10.000 caixas conferido contra força bruta, layout com 300 nós e 400 arestas, memória estável em 5.000 rodadas, WASM e JavaScript com o mesmo resultado | Rota com 500 obstáculos em 0,9 a 35 ms; 1.000 consultas no índice em 6 ms |
-| Editor (23 testes) | Calculadora dos campos, CSV, as 107 formas em vários tamanhos, os 63 modelos e os 46 padrões (como diagrama e como aula) montados no documento sem pontas soltas, a aula ao contrário, geometria, conectores ortogonais, cores do conta-gotas, distâncias da medição, organizar em grade, maiúsculas e minúsculas, clique em forma espelhada, desfazer só o que é seu, `.grafo` de ida e volta, três réplicas com 600 edições concorrentes entregues fora de ordem | As réplicas convergem; com 20.000 objetos, 200 consultas de filhos levam cerca de 10 ms |
-| Ponta a ponta (18 cenários) | GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, galeria Novo quadro com modelo e aula (Tab e Enter criando ramificações), ações rápidas pelo teclado, espelhar com conectores, trocar cores, copiar e colar propriedades, organizar em grade, duplicação inteligente, Tab entre camadas, trava de proporção, conta-gotas, medição com Alt, guias puxadas da régua, ajustar ao conteúdo, renomear em lote, busca de camadas, exportação SVG e PDF, duas abas colaborando, 3.000 objetos, o `Grafo.html` direto do disco, o tutorial rápido (aparece uma vez, avança, pula e reabre pelo menu Ajuda) e a ponte do app desktop (janela Salvar como e F11), sem nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
+| Editor (30 testes) | Diagrama a partir de Mermaid (formas, setas, rótulos, `&`, `subgraph`, entrada malformada e limites) e de lista com recuo, Mermaid de ida e volta, localizar e substituir com acentos e caracteres especiais, tabela e ordem de conexão, calculadora dos campos, CSV, as 107 formas em vários tamanhos, os 63 modelos e os 46 padrões (como diagrama e como aula) montados no documento sem pontas soltas, a aula ao contrário, geometria, conectores ortogonais, cores do conta-gotas, distâncias da medição, organizar em grade, maiúsculas e minúsculas, clique em forma espelhada, desfazer só o que é seu, `.grafo` de ida e volta, três réplicas com 600 edições concorrentes entregues fora de ordem | As réplicas convergem; com 20.000 objetos, 200 consultas de filhos levam cerca de 10 ms |
+| Ponta a ponta (22 cenários) | Diagrama a partir de texto e de lista, Mermaid de volta, conectar em sequência, localizar e substituir entre páginas com desfazer, tabela, grade de encaixe, espaço entre itens, estilo rápido, página vazia, Tab sem cobrir o canvas, GPU e WASM ativos, desenhar, duplicar, desfazer, refazer, mover, conectar, texto, auto layout, componente, booleana, galeria Novo quadro com modelo e aula (Tab e Enter criando ramificações), ações rápidas pelo teclado, espelhar com conectores, trocar cores, copiar e colar propriedades, organizar em grade, duplicação inteligente, Tab entre camadas, trava de proporção, conta-gotas, medição com Alt, guias puxadas da régua, ajustar ao conteúdo, renomear em lote, busca de camadas, exportação SVG e PDF, duas abas colaborando, 3.000 objetos, o `Grafo.html` direto do disco, o tutorial rápido (aparece uma vez, avança, pula e reabre pelo menu Ajuda) e a ponte do app desktop (janela Salvar como e F11), sem nenhum erro de JavaScript | Quadro com 3.000 objetos abaixo de 50 ms de CPU |
 | App desktop | Build reproduzível do `Grafo.exe` (gerado de novo e comparado byte a byte), `go vet` e `gofmt` no código Go | Idêntico; 0 problemas |
-| Servidor (24 testes) | Protocolo, UUID, limites, limite de taxa, convergência, reconexão depois de 25 updates perdidos, mensagens malformadas, 50 clientes numa sala e 20 salas em paralelo | 50 clientes convergem em 80 ms; 1.000 updates em 20 salas em 288 ms |
+| Servidor (27 testes) | Métricas do Prometheus e token exigido nelas, protocolo, UUID, limites, limite de taxa, convergência, reconexão depois de 25 updates perdidos, mensagens malformadas, 50 clientes numa sala e 20 salas em paralelo | 50 clientes convergem em 80 ms; 1.000 updates em 20 salas em 288 ms |
 
 O CI (GitHub Actions) roda tudo a cada push, compila o núcleo com o Emscripten, confere se o `Grafo.html` está em dia com o código, gera o `Grafo.exe` de novo e compara byte a byte com o do repositório e constrói a imagem Docker.
 
 ## Qualidade e segurança
 
 - **Navegador:** CSP sem `unsafe-eval` (o PixiJS roda no modo sem `eval` e os campos numéricos usam uma calculadora própria), `connect-src` limitado ao próprio servidor e `frame-ancestors 'none'`. Nomes de arquivos, páginas, camadas, comentários e textos entram sempre como texto, nunca como HTML. SVG importado perde scripts, eventos e referências externas e entra como imagem. Arquivos `.grafo` inválidos são recusados sem tocar no documento aberto.
-- **Servidor:** UUID validado em todas as rotas, limite de tamanho por update e por imagem, tipo de imagem conferido pelos bytes, limite de requisições por IP (429 com `Retry-After`), token de API comparado em tempo constante, links de leitura que não gravam, mensagens que o Yrs não decodifica derrubam só a conexão que as mandou, e CSP com sandbox nas imagens servidas. A imagem Docker roda sem root, sem capacidades e com sistema de arquivos somente leitura.
+- **Diagrama de texto e busca:** o leitor de Mermaid limita formas, conectores, rótulos e tamanho do texto, ignora o que não reconhece sem travar e nunca interpreta HTML; a busca trata o texto procurado como texto comum e não altera camadas bloqueadas.
+- **Servidor:** UUID validado em todas as rotas, `/api/metrics` protegido pelo mesmo token das escritas, limite de tamanho por update e por imagem, tipo de imagem conferido pelos bytes, limite de requisições por IP (429 com `Retry-After`), token de API comparado em tempo constante, links de leitura que não gravam, mensagens que o Yrs não decodifica derrubam só a conexão que as mandou, e CSP com sandbox nas imagens servidas. A imagem Docker roda sem root, sem capacidades e com sistema de arquivos somente leitura.
 - **App desktop:** carrega o mesmo `Grafo.html`, com a mesma Content-Security-Policy, roda sem permissão de administrador, não abre portas, desliga as ferramentas de desenvolvedor e o menu de contexto do navegador e só grava arquivos que você escolheu na janela Salvar como.
 - **Dados:** o CRDT garante que todos convergem para o mesmo documento, em qualquer ordem de chegada; o desfazer de cada pessoa só mexe nas próprias alterações; o editor guarda uma cópia local no IndexedDB a cada mudança, e o servidor compacta o estado e mantém os updates com número de sequência para recuperar depois de uma queda.
 - **Desempenho:** a renderização só acontece quando algo muda; os objetos fora da tela não são desenhados; a árvore de filhos, a ordem de desenho e a versão de cada nó ficam em índices que só se refazem quando a estrutura muda, e o PixiJS só redesenha os nós alterados.
@@ -531,7 +585,7 @@ desktop/                    código do app desktop em Go (janela WebView2, tela 
 web/                        editor
   index.html, css/, img/    página, estilos com a paleta e logo
   boot.js                   leva ao Grafo.html quando o index.html é aberto direto do disco
-  src/                      módulos: documento, render, editor, painéis, exportação, apresentação, modelos e aula, tutorial e exemplo
+  src/                      módulos: documento, render, editor, painéis, exportação, apresentação, modelos e aula, diagrama a partir de texto (Mermaid), tutorial e exemplo
   src/engine/               ponte JavaScript do núcleo WebAssembly, com versões em JavaScript
   assets/engine.wasm        núcleo compilado (gerado)
 engine/                     núcleo geométrico em C++17 (include/, src/, build.sh, CMakeLists.txt)
